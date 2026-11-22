@@ -298,7 +298,16 @@
   const $ = id => document.getElementById(id);
   const textEnc = new TextEncoder();
   const textDec = new TextDecoder();
-  const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  // 分段转换，避免大图片超出浏览器参数数量上限（Maximum call stack size exceeded）
+  const b64 = buf => {
+    const bytes = new Uint8Array(buf);
+    let s = "";
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      s += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    }
+    return btoa(s);
+  };
   const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
   function show(view) {
@@ -308,12 +317,12 @@
     $("logoutBtn").classList.toggle("hidden", view === "loginView");
   }
 
-  function toast(msg) {
+  function toast(msg, ms = 1500) {
     const t = $("toast");
     t.textContent = msg;
     t.style.display = "block";
     clearTimeout(toast._timer);
-    toast._timer = setTimeout(() => (t.style.display = "none"), 1500);
+    toast._timer = setTimeout(() => (t.style.display = "none"), ms);
   }
 
   // ===== 顏色工具 =====
@@ -367,7 +376,7 @@
       await saveVault();
       if (msg) toast(msg);
     } catch (e) {
-      toast("儲存失敗：" + e.message);
+      toast("儲存失敗：" + e.message, 5000);
     }
   }
 
@@ -1192,17 +1201,23 @@
     if (!note) { toast("請先選擇或新增一則記事本"); return; }
     toast("圖片加入中，請稍候…");
     $("nbMsg").textContent = "圖片處理中…";
+    let failed = 0;
     for (const f of files) {
       try {
         const id = await addImage(f);
         note.images = note.images || [];
         note.images.push(id);
       } catch (err) {
-        toast("圖片加入失敗：" + err.message);
+        failed++;
+        toast("圖片加入失敗：" + err.message, 6000);
       }
     }
     note.updated = Date.now();
-    await persist("圖片已加入");
+    if (failed === 0) {
+      await persist("圖片已加入");
+    } else {
+      await persist();
+    }
     $("nbMsg").textContent = "";
     renderNbImages(note);
   }
