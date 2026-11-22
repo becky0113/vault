@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>我的网站清单</title>
 <style>
-  :root { --pastel-1:#FFD6E0; --pastel-2:#FFE5B4; --pastel-3:#FFF5BA; --pastel-4:#C1F0D6; --pastel-5:#BDE0FE; --pastel-6:#D7C8F5; --pastel-7:#FFCFB3; }
   body { font-family: system-ui, "Microsoft JhengHei", sans-serif; margin: 0; background: #fafafa; color: #333; }
   header { background: #7c8db5; color: #fff; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
   header strong { font-size: 18px; }
@@ -15,25 +14,29 @@
   button { padding: 8px 12px; border: 0; border-radius: 8px; background: #7c8db5; color: #fff; cursor: pointer; margin: 2px; font-size: 14px; }
   button.gray { background: #9ca3af; }
   button.red { background: #e57373; }
-  input, textarea { width: 100%; box-sizing: border-box; padding: 9px; margin: 4px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; }
+  input, textarea, select { box-sizing: border-box; padding: 9px; margin: 4px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; }
+  input, textarea { width: 100%; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   .muted { color: #666; font-size: 13px; margin: 4px 0; word-break: break-all; }
   .center { min-height: 80vh; display: flex; align-items: center; justify-content: center; }
   .box { width: 320px; max-width: 90vw; }
 
   /* 卡片格子 */
-  #list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-bottom: 8px; }
   .tile { border-radius: 16px; padding: 14px; color: #333; box-shadow: 0 2px 6px rgba(0,0,0,.08); display: flex; flex-direction: column; gap: 4px; }
+  .tile[draggable="true"] { cursor: grab; }
+  .tile.over { outline: 2px dashed #7c8db5; }
   .tile strong { font-size: 18px; }
   .tile .tbtn { background: rgba(255,255,255,.75); color: #333; border: 1px solid rgba(0,0,0,.08); }
   .tile .tbtn:hover { background: #fff; }
   .tile .row { margin-top: 8px; }
+  .cat { margin: 18px 0 4px; color: #555; font-size: 16px; }
 
   /* 颜色选择 */
   .swatch { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; padding: 0; margin: 0; cursor: pointer; }
   .swatch.on { border-color: #333; }
-  #eColor { width: 60px; height: 36px; padding: 2px; margin: 0; }
-  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 14px; border-radius: 8px; display: none; }
+  #eColor, #bgColor { width: 60px; height: 36px; padding: 2px; margin: 0; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 14px; border-radius: 8px; display: none; z-index: 9; }
 </style>
 </head>
 <body>
@@ -64,18 +67,34 @@
     </div>
   </section>
 
-  <!-- 3. 保险库 -->
+  <!-- 3. 清单 -->
   <section id="vaultView" class="hidden">
     <div class="row" style="justify-content: space-between; margin-top: 8px;">
       <button id="openAllBtn">一键开启全部网站</button>
       <button id="addBtn" class="gray">新增网站</button>
     </div>
-    <div class="row muted" style="margin-top: 6px;">
-      页面背景：<input id="bgColor" type="color" value="#fafafa" style="width: 60px; height: 34px; padding: 2px; margin: 0;">
+
+    <input id="search" placeholder="搜寻名称、网址、帐号、分类…" style="margin-top: 10px;">
+
+    <div class="row muted" style="margin-top: 4px;">
+      字体：
+      <select id="fontSize">
+        <option value="s">小</option>
+        <option value="m">中</option>
+        <option value="l">大</option>
+      </select>
+      页面背景：<input id="bgColor" type="color" value="#fafafa">
+    </div>
+
+    <div class="row" style="margin-top: 6px;">
+      <button id="backupBtn" class="gray">下载加密备份</button>
+      <label class="muted">还原备份：<input id="restoreFile" type="file" accept=".json" style="width: auto; border: 0; padding: 0;"></label>
     </div>
 
     <div id="editor" class="panel hidden" style="margin-top:14px;">
       <input id="eName" placeholder="名称（例如 SH）">
+      <input id="eCat" list="catList" placeholder="分类（选填，例如 平台 A）">
+      <datalist id="catList"></datalist>
       <input id="eUrl" placeholder="网址（https://...）">
       <input id="eUser" placeholder="帐号">
       <input id="ePass" type="password" placeholder="密码">
@@ -107,7 +126,7 @@
   import { getFirestore, doc, getDoc, setDoc }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // ===== 设定区：请填入你自己的 Firebase 专案资料，以及你的 Gmail =====
+  // ===== 设定区 =====
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyBZd0TJTOG-CVRmWCgGFV6Jiq3B3gNV3mk",
     authDomain: "ningzhao0918.firebaseapp.com",
@@ -117,8 +136,8 @@
   const ALLOWED_EMAIL = "shee740113@gmail.com";
   // ====================================================================
 
-  // 粉彩预设色
   const PRESETS = ["#FFD6E0", "#FFE5B4", "#FFF5BA", "#C1F0D6", "#BDE0FE", "#D7C8F5", "#FFCFB3"];
+  const ZOOM = { s: 0.9, m: 1, l: 1.2 };
 
   const app = initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
@@ -128,8 +147,9 @@
   let key = null;
   let salt = null;
   let items = [];
-  let settings = { bg: "#fafafa" };
+  let settings = { bg: "#fafafa", font: "m" };
   let editingId = null;
+  let dragId = null;
 
   const $ = id => document.getElementById(id);
   const enc = new TextEncoder();
@@ -172,6 +192,15 @@
       data: b64(ct),
       updated: Date.now()
     });
+  }
+
+  async function persist(msg) {
+    try {
+      await saveVault();
+      if (msg) toast(msg);
+    } catch (e) {
+      toast("储存失败：" + e.message);
+    }
   }
 
   // ===== 登入 =====
@@ -218,13 +247,13 @@
           items = p.items || [];
           settings = { ...settings, ...(p.settings || {}) };
         }
-        applyBg();
       } else {
         salt = crypto.getRandomValues(new Uint8Array(16));
         key = await deriveKey(pass, salt);
         items = [];
         await saveVault();
       }
+      applyAll();
       show("vaultView");
       render();
     } catch (e) {
@@ -240,21 +269,76 @@
     toast("已登出");
   };
 
-  // ===== 页面背景 =====
+  // ===== 外观设定 =====
+  function applyAll() {
+    applyBg();
+    applyFont();
+  }
+
   function applyBg() {
     const c = settings.bg || "#fafafa";
     document.body.style.background = c;
     $("bgColor").value = c;
   }
 
+  function applyFont() {
+    const f = settings.font || "m";
+    document.body.style.zoom = ZOOM[f];
+    $("fontSize").value = f;
+  }
+
   $("bgColor").addEventListener("change", async e => {
     settings.bg = e.target.value;
     applyBg();
+    await persist("背景已储存");
+  });
+
+  $("fontSize").addEventListener("change", async e => {
+    settings.font = e.target.value;
+    applyFont();
+    await persist("字体已储存");
+  });
+
+  // ===== 搜寻 =====
+  $("search").addEventListener("input", render);
+
+  // ===== 备份与还原 =====
+  $("backupBtn").onclick = async () => {
     try {
-      await saveVault();
-      toast("背景已储存");
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify({ items, settings })));
+      const payload = { format: "vault-backup-v1", salt: b64(salt), iv: b64(iv), data: b64(ct) };
+      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "网站清单备份-" + new Date().toISOString().slice(0, 10) + ".json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast("备份已下载（请妥善保管）");
+    } catch (e) {
+      toast("备份失败：" + e.message);
+    }
+  };
+
+  $("restoreFile").addEventListener("change", async e => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    const pass = prompt("请输入这份备份当时使用的加密密码：");
+    if (!pass) return;
+    try {
+      const d = JSON.parse(await file.text());
+      const k = await deriveKey(pass, unb64(d.salt));
+      const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(d.iv) }, k, unb64(d.data));
+      const p = JSON.parse(dec.decode(pt));
+      if (!confirm("还原会覆盖目前的清单，确定要还原吗？")) return;
+      items = p.items || [];
+      settings = { ...settings, ...(p.settings || {}) };
+      applyAll();
+      await persist("已还原");
+      render();
     } catch (err) {
-      toast("储存失败：" + err.message);
+      toast("还原失败：密码不正确或档案已损坏");
     }
   });
 
@@ -272,6 +356,27 @@
     toast("已复制");
   }
 
+  async function moveBefore(fromId, toId) {
+    const from = items.find(x => x.id === fromId);
+    const to = items.find(x => x.id === toId);
+    if (!from || !to || from === to) return;
+    items = items.filter(x => x.id !== fromId);
+    from.category = to.category || "";
+    const idx = items.findIndex(x => x.id === toId);
+    items.splice(idx, 0, from);
+    await persist();
+    render();
+  }
+
+  async function moveStep(id, dir) {
+    const i = items.findIndex(x => x.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= items.length) return;
+    [items[i], items[j]] = [items[j], items[i]];
+    await persist();
+    render();
+  }
+
   function render() {
     const list = $("list");
     list.textContent = "";
@@ -280,44 +385,120 @@
       p.className = "muted";
       p.textContent = "还没有网站，按「新增网站」开始。";
       list.appendChild(p);
+      renderCatList();
       return;
     }
-    items.forEach(it => {
-      const tile = document.createElement("div");
-      tile.className = "tile";
-      tile.style.background = it.color || PRESETS[0];
 
-      const title = document.createElement("strong");
-      title.textContent = it.name;
-      tile.appendChild(title);
+    const q = $("search").value.trim().toLowerCase();
+    const searching = q !== "";
+    const visible = items.filter(it =>
+      !searching ||
+      [it.name, it.url, it.username, it.note || "", it.category || ""].some(s => s.toLowerCase().includes(q))
+    );
 
-      const url = document.createElement("div");
-      url.className = "muted";
-      url.textContent = it.url;
-      tile.appendChild(url);
+    if (!visible.length) {
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = "找不到符合的网站。";
+      list.appendChild(p);
+      return;
+    }
 
-      const acc = document.createElement("div");
-      acc.className = "muted";
-      acc.textContent = "帐号：" + it.username;
-      tile.appendChild(acc);
+    // 依分类分组（分类依第一次出现的顺序排列）
+    const groups = new Map();
+    visible.forEach(it => {
+      const c = it.category || "未分类";
+      if (!groups.has(c)) groups.set(c, []);
+      groups.get(c).push(it);
+    });
 
-      if (it.note) {
-        const n = document.createElement("div");
-        n.className = "muted";
-        n.textContent = it.note;
-        tile.appendChild(n);
-      }
+    groups.forEach((arr, cat) => {
+      const h = document.createElement("div");
+      h.className = "cat";
+      h.textContent = cat;
+      list.appendChild(h);
 
-      const row = document.createElement("div");
-      row.className = "row";
-      row.appendChild(tbtn("开启", () => window.open(it.url, "_blank", "noopener")));
-      row.appendChild(tbtn("复制帐号", () => copy(it.username)));
-      row.appendChild(tbtn("复制密码", () => copy(it.password)));
-      row.appendChild(tbtn("编辑", () => openEditor(it)));
-      row.appendChild(tbtn("删除", () => removeItem(it.id), "red"));
-      tile.appendChild(row);
+      const grid = document.createElement("div");
+      grid.className = "grid";
+      arr.forEach(it => grid.appendChild(tile(it, !searching)));
+      list.appendChild(grid);
+    });
 
-      list.appendChild(tile);
+    renderCatList();
+  }
+
+  function tile(it, canReorder) {
+    const tileEl = document.createElement("div");
+    tileEl.className = "tile";
+    tileEl.style.background = it.color || PRESETS[0];
+
+    const title = document.createElement("strong");
+    title.textContent = it.name;
+    tileEl.appendChild(title);
+
+    const url = document.createElement("div");
+    url.className = "muted";
+    url.textContent = it.url;
+    tileEl.appendChild(url);
+
+    const acc = document.createElement("div");
+    acc.className = "muted";
+    acc.textContent = "帐号：" + it.username;
+    tileEl.appendChild(acc);
+
+    if (it.note) {
+      const n = document.createElement("div");
+      n.className = "muted";
+      n.textContent = it.note;
+      tileEl.appendChild(n);
+    }
+
+    const row = document.createElement("div");
+    row.className = "row";
+    row.appendChild(tbtn("开启", () => window.open(it.url, "_blank", "noopener")));
+    row.appendChild(tbtn("复制帐号", () => copy(it.username)));
+    row.appendChild(tbtn("复制密码", () => copy(it.password)));
+    row.appendChild(tbtn("编辑", () => openEditor(it)));
+    row.appendChild(tbtn("删除", () => removeItem(it.id), "red"));
+    if (canReorder) {
+      row.appendChild(tbtn("↑", () => moveStep(it.id, -1), "gray"));
+      row.appendChild(tbtn("↓", () => moveStep(it.id, 1), "gray"));
+    }
+    tileEl.appendChild(row);
+
+    if (canReorder) {
+      tileEl.draggable = true;
+      tileEl.addEventListener("dragstart", e => {
+        dragId = it.id;
+        e.dataTransfer.effectAllowed = "move";
+        tileEl.style.opacity = "0.5";
+      });
+      tileEl.addEventListener("dragend", () => {
+        dragId = null;
+        tileEl.style.opacity = "1";
+      });
+      tileEl.addEventListener("dragover", e => {
+        e.preventDefault();
+        tileEl.classList.add("over");
+      });
+      tileEl.addEventListener("dragleave", () => tileEl.classList.remove("over"));
+      tileEl.addEventListener("drop", e => {
+        e.preventDefault();
+        tileEl.classList.remove("over");
+        if (dragId) moveBefore(dragId, it.id);
+      });
+    }
+
+    return tileEl;
+  }
+
+  function renderCatList() {
+    const dl = $("catList");
+    dl.textContent = "";
+    [...new Set(items.map(x => x.category).filter(Boolean))].forEach(c => {
+      const o = document.createElement("option");
+      o.value = c;
+      dl.appendChild(o);
     });
   }
 
@@ -351,11 +532,13 @@
   function openEditor(it = null) {
     editingId = it ? it.id : null;
     $("eName").value = it ? it.name : "";
+    $("eCat").value = it ? (it.category || "") : "";
     $("eUrl").value = it ? it.url : "";
     $("eUser").value = it ? it.username : "";
     $("ePass").value = it ? it.password : "";
     $("eNote").value = it ? (it.note || "") : "";
     $("editMsg").textContent = "";
+    renderCatList();
     buildSwatches();
     setColor(it && it.color ? it.color : PRESETS[0]);
     $("editor").classList.remove("hidden");
@@ -373,6 +556,7 @@
   $("saveBtn").onclick = async () => {
     const data = {
       name: $("eName").value.trim(),
+      category: $("eCat").value.trim(),
       url: $("eUrl").value.trim(),
       username: $("eUser").value,
       password: $("ePass").value,
@@ -400,7 +584,7 @@
   async function removeItem(id) {
     if (!confirm("确定要删除这个网站吗？")) return;
     items = items.filter(x => x.id !== id);
-    await saveVault();
+    await persist();
     render();
   }
 </script>
