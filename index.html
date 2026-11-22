@@ -76,6 +76,13 @@
   .imgWrap { display: flex; flex-direction: column; gap: 4px; }
   .imgWrap img { width: 100%; border-radius: 8px; cursor: zoom-in; display: block; background: #eee; min-height: 60px; }
 
+  /* 放大檢視 */
+  #lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 20; display: flex; flex-direction: column; }
+  .lbBar { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; padding: 10px; background: rgba(0,0,0,.4); }
+  .lbBar button { margin: 0; }
+  #lbStage { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  #lbImg { max-width: 90vw; max-height: 78vh; transition: transform .15s; user-select: none; background: #fff; border-radius: 6px; }
+
   /* 顏色選擇 */
   .swatch { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; padding: 0; margin: 0; cursor: pointer; }
   .swatch.on { border-color: #333; }
@@ -236,6 +243,19 @@
       </div>
     </div>
   </div>
+</div>
+
+<div id="lightbox" class="hidden">
+  <div class="lbBar">
+    <button id="lbZoomIn">放大 ＋</button>
+    <button id="lbZoomOut">縮小 －</button>
+    <button id="lbReset" class="gray">還原</button>
+    <button id="lbRotL" class="gray">左轉 ↺</button>
+    <button id="lbRotR" class="gray">右轉 ↻</button>
+    <button id="lbFlip" class="gray">鏡像 ⇆</button>
+    <button id="lbClose" class="red">關閉 ✕</button>
+  </div>
+  <div id="lbStage"><img id="lbImg" alt=""></div>
 </div>
 
 <div id="toast"></div>
@@ -424,6 +444,56 @@
     imgCache.delete(id);
   }
 
+  // ===== 放大檢視（頁面內，不另開分頁） =====
+  const lb = { zoom: 1, rot: 0, flip: false };
+
+  function applyLb() {
+    $("lbImg").style.transform = `scale(${lb.zoom}) rotate(${lb.rot}deg) scaleX(${lb.flip ? -1 : 1})`;
+  }
+
+  function resetLb() {
+    lb.zoom = 1; lb.rot = 0; lb.flip = false;
+    applyLb();
+  }
+
+  function openLightbox(src) {
+    $("lbImg").src = src;
+    resetLb();
+    $("lightbox").classList.remove("hidden");
+  }
+
+  function closeLightbox() {
+    $("lightbox").classList.add("hidden");
+    $("lbImg").src = "";
+  }
+
+  function zoomBy(d) {
+    lb.zoom = Math.min(5, Math.max(0.25, +(lb.zoom + d).toFixed(2)));
+    applyLb();
+  }
+
+  $("lbZoomIn").onclick = () => zoomBy(0.25);
+  $("lbZoomOut").onclick = () => zoomBy(-0.25);
+  $("lbReset").onclick = resetLb;
+  $("lbRotL").onclick = () => { lb.rot -= 90; applyLb(); };
+  $("lbRotR").onclick = () => { lb.rot += 90; applyLb(); };
+  $("lbFlip").onclick = () => { lb.flip = !lb.flip; applyLb(); };
+  $("lbClose").onclick = closeLightbox;
+  $("lbStage").addEventListener("click", e => { if (e.target.id === "lbStage") closeLightbox(); });
+  $("lbStage").addEventListener("wheel", e => {
+    e.preventDefault();
+    zoomBy(e.deltaY < 0 ? 0.1 : -0.1);
+  }, { passive: false });
+
+  document.addEventListener("keydown", e => {
+    if ($("lightbox").classList.contains("hidden")) return;
+    if (e.key === "Escape") closeLightbox();
+    else if (e.key === "+" || e.key === "=") zoomBy(0.25);
+    else if (e.key === "-") zoomBy(-0.25);
+    else if (e.key === "ArrowLeft") { lb.rot -= 90; applyLb(); }
+    else if (e.key === "ArrowRight") { lb.rot += 90; applyLb(); }
+  });
+
   // ===== 登入 =====
   $("googleBtn").onclick = async () => {
     try {
@@ -551,7 +621,7 @@
 
   function applyFont() {
     const f = settings.font || "m";
-    document.body.style.zoom = ZOOM[f];
+    $("vaultView").style.zoom = ZOOM[f];
     $("fontSize").value = f;
   }
 
@@ -1242,10 +1312,7 @@
       const img = document.createElement("img");
       img.alt = "截圖 " + (i + 1);
       img.title = "點一下放大";
-      img.onclick = async () => {
-        const u = await getImage(id).catch(() => null);
-        if (u) window.open(u, "_blank");
-      };
+      img.onclick = () => { if (img.src) openLightbox(img.src); };
       const cap = document.createElement("div");
       cap.className = "muted";
       cap.textContent = "截圖 " + (i + 1) + " 載入中…";
