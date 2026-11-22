@@ -104,6 +104,7 @@
       <div class="row">
         <div id="swatches" class="row"></div>
         <label class="row muted">自选：<input id="eColor" type="color" value="#FFD6E0"></label>
+        <label class="row muted">色码：<input id="eHex" placeholder="#FFD6E0" maxlength="7" style="width: 110px; margin: 0;"></label>
       </div>
 
       <div class="row" style="margin-top:10px;">
@@ -509,6 +510,7 @@
   // ===== 颜色选择 =====
   function setColor(c) {
     $("eColor").value = c;
+    if (document.activeElement !== $("eHex")) $("eHex").value = c.toUpperCase();
     document.querySelectorAll(".swatch").forEach(s => s.classList.toggle("on", s.dataset.color.toLowerCase() === c.toLowerCase()));
   }
 
@@ -527,6 +529,17 @@
   }
 
   $("eColor").addEventListener("input", e => setColor(e.target.value));
+
+  $("eHex").addEventListener("input", e => {
+    let v = e.target.value.trim();
+    if (v && !v.startsWith("#")) v = "#" + v;
+    if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+      $("editMsg").textContent = "";
+      setColor(v);
+    } else if (v.length >= 7) {
+      $("editMsg").textContent = "色码格式不正确，要 6 位数，例如 #215487";
+    }
+  });
 
   // ===== 编辑 =====
   function openEditor(it = null) {
