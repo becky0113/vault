@@ -1218,18 +1218,35 @@
   function renderNbImages(note) {
     const box = $("nbImgs");
     box.textContent = "";
-    (note.images || []).forEach(id => {
+    const ids = note.images || [];
+    $("nbMsg").textContent = ids.length ? "共 " + ids.length + " 張截圖" : "";
+    ids.forEach((id, i) => {
       const wrap = document.createElement("div");
       wrap.className = "imgWrap";
 
       const img = document.createElement("img");
-      img.alt = "截圖";
+      img.alt = "截圖 " + (i + 1);
       img.title = "點一下放大";
       img.onclick = async () => {
-        const u = await getImage(id);
+        const u = await getImage(id).catch(() => null);
         if (u) window.open(u, "_blank");
       };
-      getImage(id).then(u => { if (u) img.src = u; }).catch(() => {});
+      const cap = document.createElement("div");
+      cap.className = "muted";
+      cap.textContent = "截圖 " + (i + 1) + " 載入中…";
+
+      const cached = imgCache.get(id);
+      if (cached) {
+        img.src = cached;
+        cap.textContent = "截圖 " + (i + 1);
+      } else {
+        getImage(id)
+          .then(u => {
+            if (u) { img.src = u; cap.textContent = "截圖 " + (i + 1); }
+            else cap.textContent = "找不到這張圖片（可能已被刪除）";
+          })
+          .catch(err => { cap.textContent = "無法載入：" + err.message; });
+      }
 
       const del = smallBtn("刪除這張圖", async () => {
         if (!confirm("確定要刪除這張圖片嗎？")) return;
@@ -1239,7 +1256,7 @@
         renderNbImages(note);
       }, "red");
 
-      wrap.append(img, del);
+      wrap.append(img, cap, del);
       box.appendChild(wrap);
     });
   }
