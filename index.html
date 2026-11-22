@@ -22,6 +22,10 @@
   .center { min-height: 80vh; display: flex; align-items: center; justify-content: center; }
   .box { width: 320px; max-width: 90vw; }
   .area { padding: 16px; }
+  .over { outline: 2px dashed #7c8db5 !important; }
+  .dragging { opacity: .4; }
+  .handle { cursor: grab; user-select: none; padding: 0 4px; font-size: 16px; line-height: 1; opacity: .6; flex-shrink: 0; }
+  .handle:active { cursor: grabbing; }
 
   /* 外框：左側分類 + 右側內容 */
   #shell { display: flex; min-height: calc(100vh - 52px); }
@@ -43,8 +47,7 @@
 
   /* 網站卡片 */
   .item { border-radius: 12px; padding: 12px; color: #333; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-  .item[draggable="true"] { cursor: grab; }
-  .item.over { outline: 2px dashed #7c8db5; }
+  .item .top { display: flex; align-items: center; gap: 4px; }
   .item .info { min-width: 0; }
   .item .info strong { display: block; font-size: 16px; margin-bottom: 2px; }
   .item .muted { color: #555; word-break: normal; overflow-wrap: anywhere; margin: 2px 0; }
@@ -53,22 +56,22 @@
   .tbtn:hover { background: #fff; }
 
   /* 罐頭語 */
-  .snRow { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; background: var(--panel); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .snRow { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; background: var(--panel); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
   .snLabel { width: 140px; flex-shrink: 0; font-weight: bold; padding-top: 6px; word-break: break-all; }
   .snText { flex: 1; min-width: 0; cursor: pointer; padding: 6px 8px; border-radius: 8px; white-space: pre-wrap; word-break: break-word; }
   .snText:hover { background: rgba(124,141,181,.2); }
   .snBtns { display: flex; flex-direction: column; gap: 4px; }
 
   /* 便籤 */
-  .stGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 12px; }
-  .stCard { border-radius: 12px; padding: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.08); display: flex; flex-direction: column; gap: 6px; }
-  .stCard textarea { background: rgba(255,255,255,.6); border: 0; resize: vertical; min-height: 110px; color: #333; }
+  .stCard { display: flex; gap: 8px; align-items: center; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.08); color: #333; }
+  .stPrev { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
 
   /* 記事本 */
   .nbWrap { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
   .nbList { width: 230px; flex-shrink: 0; }
-  .nbItem { padding: 10px; border-radius: 10px; cursor: pointer; background: var(--panel); margin-bottom: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.06); word-break: break-all; }
+  .nbItem { display: flex; align-items: center; gap: 4px; padding: 8px 10px; border-radius: 10px; cursor: pointer; background: var(--panel); margin-bottom: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
   .nbItem.on { outline: 2px solid #7c8db5; }
+  .nbLabel { flex: 1; min-width: 0; word-break: break-all; }
   .nbEdit { flex: 1; min-width: 300px; background: var(--panel); border-radius: 14px; padding: 14px; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
   .nbEdit textarea { min-height: 220px; }
   .nbPasteBox { border: 2px dashed #9ca3af; border-radius: 10px; padding: 10px; text-align: center; color: #666; font-size: 13px; margin: 6px 0; }
@@ -89,6 +92,19 @@
   #eColor, #bgColor, #hdColor { width: 60px; height: 36px; padding: 2px; margin: 0; }
   #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 14px; border-radius: 8px; display: none; z-index: 9; }
 
+  /* 小視窗（便籤 / 罐頭語） */
+  #miniView { display: none; flex-direction: column; gap: 8px; padding: 10px; min-height: 100vh; box-sizing: border-box; }
+  body.mini #miniView { display: flex; }
+  body.mini #loginView, body.mini #unlockView, body.mini #vaultView, body.mini #lightbox, body.mini #toast, body.mini header { display: none !important; }
+  #miniSticky { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .mini-bar { display: flex; gap: 4px; flex-wrap: wrap; }
+  .mini-bar button { margin: 0; }
+  #msCard { flex: 1; display: flex; border-radius: 12px; padding: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+  #msText { flex: 1; min-height: 240px; width: 100%; border: 0; background: transparent; resize: none; font-size: 15px; color: #333; padding: 4px; margin: 0; }
+  .msSn { border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; color: #333; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .msSn:hover { outline: 2px solid #7c8db5; }
+  .msSn div { white-space: pre-wrap; word-break: break-word; margin-top: 2px; }
+
   @media (max-width: 700px) {
     #shell { flex-direction: column; }
     aside { width: auto; display: flex; flex-wrap: wrap; gap: 4px; border-right: 0; border-bottom: 1px solid rgba(127,127,127,.2); }
@@ -105,6 +121,25 @@
   <strong id="hdTitle">我的網站清單</strong>
   <button id="logoutBtn" class="gray hidden">登出</button>
 </header>
+
+<!-- 0. 小視窗（由 ?mini= 網址開啟） -->
+<div id="miniView">
+  <div id="msStatus" class="muted"></div>
+  <div id="miniSticky" class="hidden">
+    <div class="mini-bar">
+      <button id="msColor" class="gray">換色</button>
+      <button id="msNew" class="gray">＋ 新便籤</button>
+      <button id="msDel" class="red">刪除</button>
+    </div>
+    <div id="msCard" style="background:#FFF5BA;">
+      <textarea id="msText" placeholder="寫點什麼…"></textarea>
+    </div>
+  </div>
+  <div id="miniSnip" class="hidden">
+    <input id="msSearch" placeholder="搜尋罐頭語…">
+    <div id="msList" style="margin-top:8px;"></div>
+  </div>
+</div>
 
 <!-- 1. 登入 -->
 <section id="loginView" class="center">
@@ -210,14 +245,18 @@
         <span id="snMsg" class="muted"></span>
       </div>
     </div>
+    <div class="row" style="margin-bottom:8px;">
+      <button id="snWin" class="gray">另開罐頭語小窗（點一下即可複製）</button>
+    </div>
     <input id="snSearch" placeholder="搜尋罐頭語…">
     <div id="snList" style="margin-top:12px;"></div>
   </div>
 
   <!-- 便籤 -->
   <div id="stickyArea" class="area hidden">
-    <div class="row"><button id="stAdd">＋ 新增便籤</button></div>
-    <div id="stList" class="stGrid"></div>
+    <div class="row"><button id="stAdd">＋ 新增便籤（開新小窗）</button></div>
+    <p class="muted">每張便籤會開成獨立的小視窗；拖曳 ⋮⋮ 可以調整順序。</p>
+    <div id="stList" style="margin-top:12px;"></div>
   </div>
 
   <!-- 記事本 -->
@@ -303,9 +342,17 @@
   const DEFAULT_TITLE = "我的網站清單";
   const MAX_IMG_CHARS = 900000;
 
+  // 小視窗模式：網址帶 ?mini=sticky&id=... 或 ?mini=snip
+  const QS = new URLSearchParams(location.search);
+  const MINI = QS.get("mini");
+  const MINI_ID = QS.get("id");
+  const BASE = location.origin + location.pathname;
+  if (MINI) document.body.classList.add("mini");
+
   const app = initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
   const db = getFirestore(app);
+  const bc = new BroadcastChannel("vault-sync");
 
   let user = null;
   let key = null;
@@ -315,13 +362,22 @@
   let notes = [];
   let settings = { bg: "#fafafa", font: "m", header: "#7c8db5", theme: "粉彩", title: DEFAULT_TITLE, catColors: {} };
   let editingId = null;
-  let dragId = null;
   let activeCat = null;
   let snEditId = null;
   let nbSelId = null;
   let area = "sites";
+  let dragKind = null;
+  let dragId = null;
   const imgCache = new Map();
   const openNotes = new Map(); // 已解鎖的加密記事本：id -> { key, title, body, images }
+
+  // 小視窗用的狀態
+  let lastState = null;
+  let lastSig = "";
+  let lastStateAt = 0;
+  let miniLoaded = false;
+  let miniText = null;
+  let miniTimer = null;
 
   const $ = id => document.getElementById(id);
   const textEnc = new TextEncoder();
@@ -361,6 +417,11 @@
   }
   function theme() { return THEMES[settings.theme] || THEMES["粉彩"]; }
   function palette() { return theme().cards; }
+  function nextStickyColor() {
+    const cards = palette();
+    const count = notes.filter(n => n.type === "sticky").length;
+    return cards[count % cards.length];
+  }
 
   // ===== 加密 =====
   async function deriveKey(pass, saltBytes) {
@@ -403,7 +464,25 @@
     return { items, snippets, notes, settings };
   }
 
+  // 目前狀態（給小視窗用）：不含加密記事本的內容
+  function snapshot() {
+    return {
+      type: "state",
+      ready: !!key,
+      stickies: notes.filter(n => n.type === "sticky").map(n => ({ id: n.id, body: n.body || "", color: n.color })),
+      snippets,
+      settings,
+      cards: palette(),
+      dark: isDark(settings.bg || "#fafafa")
+    };
+  }
+
+  function broadcast() {
+    if (!MINI) bc.postMessage(snapshot());
+  }
+
   async function saveVault() {
+    broadcast();
     const sealed = await sealWith(key, JSON.stringify(vaultPayload()));
     await setDoc(doc(db, "vaults", user.uid), {
       salt: b64(salt),
@@ -484,6 +563,7 @@
   };
 
   onAuthStateChanged(auth, async u => {
+    if (MINI) return; // 小視窗不需要登入流程，資料由主畫面提供
     if (!u) {
       user = null; key = null; items = []; snippets = []; notes = [];
       imgCache.clear(); openNotes.clear();
@@ -729,24 +809,71 @@
     toast("已複製");
   }
 
-  // ===== 網站排序 =====
-  async function moveBefore(fromId, toId) {
-    const from = items.find(x => x.id === fromId);
-    const to = items.find(x => x.id === toId);
-    if (!from || !to || from === to) return;
-    items = items.filter(x => x.id !== fromId);
-    from.category = to.category || "";
-    const idx = items.findIndex(x => x.id === toId);
-    items.splice(idx, 0, from);
-    await persist();
-    render();
+  // ===== 拖曳排序（⋮⋮ 把手） =====
+  function makeHandle(title = "拖曳排序") {
+    const h = document.createElement("span");
+    h.className = "handle";
+    h.textContent = "⋮⋮";
+    h.title = title;
+    return h;
   }
 
-  async function moveStep(id, dir) {
-    const i = items.findIndex(x => x.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= items.length) return;
-    [items[i], items[j]] = [items[j], items[i]];
+  // 只有按住把手時才允許拖曳，避免影響卡片上的按鈕與文字選取
+  function bindDrag(row, handle, kind, id, onDrop) {
+    handle.addEventListener("mousedown", () => {
+      row.draggable = true;
+      const off = () => {
+        row.draggable = false;
+        document.removeEventListener("mouseup", off);
+      };
+      document.addEventListener("mouseup", off);
+    });
+    row.addEventListener("dragstart", e => {
+      dragKind = kind;
+      dragId = id;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", id);
+      row.classList.add("dragging");
+    });
+    row.addEventListener("dragend", () => {
+      row.draggable = false;
+      row.classList.remove("dragging");
+      dragKind = null;
+      dragId = null;
+      document.querySelectorAll(".over").forEach(x => x.classList.remove("over"));
+    });
+    row.addEventListener("dragover", e => {
+      if (dragKind !== kind) return;
+      e.preventDefault();
+      row.classList.add("over");
+    });
+    row.addEventListener("dragleave", () => row.classList.remove("over"));
+    row.addEventListener("drop", e => {
+      if (dragKind !== kind) return;
+      e.preventDefault();
+      row.classList.remove("over");
+      const from = dragId;
+      if (from && from !== id) onDrop(from, id);
+    });
+  }
+
+  // 把 fromId 移到 toId 的位置（移到目標之前）
+  function moveInList(arr, fromId, toId) {
+    const i = arr.findIndex(x => x.id === fromId);
+    if (i < 0) return false;
+    const [m] = arr.splice(i, 1);
+    const j = arr.findIndex(x => x.id === toId);
+    if (j < 0) { arr.splice(i, 0, m); return false; }
+    arr.splice(j, 0, m);
+    return true;
+  }
+
+  async function moveItem(fromId, toId) {
+    const from = items.find(x => x.id === fromId);
+    const to = items.find(x => x.id === toId);
+    if (!from || !to) return;
+    from.category = to.category || "";
+    moveInList(items, fromId, toId);
     await persist();
     render();
   }
@@ -903,9 +1030,19 @@
 
     const info = document.createElement("div");
     info.className = "info";
+
+    const top = document.createElement("div");
+    top.className = "top";
+    if (canReorder) {
+      const h = makeHandle();
+      top.appendChild(h);
+      bindDrag(row, h, "item", it.id, (f, t) => moveItem(f, t));
+    }
     const name = document.createElement("strong");
     name.textContent = it.name;
-    info.appendChild(name);
+    top.appendChild(name);
+    info.appendChild(top);
+
     const acc = document.createElement("div");
     acc.className = "muted";
     acc.textContent = "帳號：" + it.username;
@@ -925,34 +1062,7 @@
     btns.appendChild(tbtn("複製密碼", () => copy(it.password)));
     btns.appendChild(tbtn("編輯", () => openEditor(it)));
     btns.appendChild(tbtn("刪除", () => removeItem(it.id), "red"));
-    if (canReorder) {
-      btns.appendChild(tbtn("↑", () => moveStep(it.id, -1), "gray"));
-      btns.appendChild(tbtn("↓", () => moveStep(it.id, 1), "gray"));
-    }
     row.appendChild(btns);
-
-    if (canReorder) {
-      row.draggable = true;
-      row.addEventListener("dragstart", e => {
-        dragId = it.id;
-        e.dataTransfer.effectAllowed = "move";
-        row.style.opacity = "0.5";
-      });
-      row.addEventListener("dragend", () => {
-        dragId = null;
-        row.style.opacity = "1";
-      });
-      row.addEventListener("dragover", e => {
-        e.preventDefault();
-        row.classList.add("over");
-      });
-      row.addEventListener("dragleave", () => row.classList.remove("over"));
-      row.addEventListener("drop", e => {
-        e.preventDefault();
-        row.classList.remove("over");
-        if (dragId) moveBefore(dragId, it.id);
-      });
-    }
     return row;
   }
 
@@ -1131,6 +1241,14 @@
       const row = document.createElement("div");
       row.className = "snRow";
 
+      if (!q) {
+        const h = makeHandle();
+        row.appendChild(h);
+        bindDrag(row, h, "snip", s.id, (f, t) => {
+          if (moveInList(snippets, f, t)) { persist(); renderSnippets(); }
+        });
+      }
+
       const label = document.createElement("div");
       label.className = "snLabel";
       label.textContent = s.label;
@@ -1192,8 +1310,13 @@
 
   $("snCancel").onclick = resetSnForm;
   $("snSearch").addEventListener("input", renderSnippets);
+  $("snWin").onclick = () => window.open(BASE + "?mini=snip", "vault-snip", "width=380,height=600");
 
-  // ===== 便籤 =====
+  // ===== 便籤（每張便籤 = 一個小視窗） =====
+  function openStickyWin(id) {
+    window.open(BASE + "?mini=sticky&id=" + encodeURIComponent(id), "vault-sticky-" + id, "width=320,height=340");
+  }
+
   function renderStickies() {
     const list = $("stList");
     list.textContent = "";
@@ -1209,17 +1332,18 @@
       card.className = "stCard";
       card.style.background = n.color || palette()[0];
 
-      const ta = document.createElement("textarea");
-      ta.value = n.body || "";
-      ta.placeholder = "寫點什麼…";
-      ta.addEventListener("change", async () => {
-        n.body = ta.value;
-        n.updated = Date.now();
-        await persist("便籤已儲存");
+      const h = makeHandle();
+      bindDrag(card, h, "sticky", n.id, (f, t) => {
+        if (moveInList(notes, f, t)) { persist(); renderStickies(); }
       });
+
+      const prev = document.createElement("div");
+      prev.className = "stPrev";
+      prev.textContent = n.body ? n.body.slice(0, 120) : "（空白便籤）";
 
       const btns = document.createElement("div");
       btns.className = "row";
+      btns.appendChild(tbtn("開小窗", () => openStickyWin(n.id)));
       btns.appendChild(tbtn("換色", async () => {
         const cards = palette();
         const i = cards.indexOf(n.color);
@@ -1234,18 +1358,51 @@
         renderStickies();
       }, "red"));
 
-      card.append(ta, btns);
+      card.append(h, prev, btns);
       list.appendChild(card);
     });
   }
 
   $("stAdd").onclick = async () => {
-    const cards = palette();
-    const count = notes.filter(n => n.type === "sticky").length;
-    notes.push({ id: crypto.randomUUID(), type: "sticky", title: "", body: "", images: [], color: cards[count % cards.length], updated: Date.now() });
+    const id = crypto.randomUUID();
+    openStickyWin(id); // 要在點擊當下開視窗，否則會被瀏覽器擋掉
+    notes.push({ id, type: "sticky", title: "", body: "", images: [], color: nextStickyColor(), updated: Date.now() });
     await persist();
     renderStickies();
   };
+
+  // 接收小視窗傳來的要求（只有主畫面會處理）
+  async function onPopupMsg(m) {
+    if (!key || !user) return;
+    try {
+      if (m.type === "stickyBody") {
+        const n = notes.find(x => x.id === m.id && x.type === "sticky");
+        if (!n) return;
+        n.body = m.body;
+        n.updated = Date.now();
+        await saveVault();
+      } else if (m.type === "stickyColor") {
+        const n = notes.find(x => x.id === m.id && x.type === "sticky");
+        if (!n) return;
+        const cards = palette();
+        n.color = cards[(cards.indexOf(n.color) + 1) % cards.length];
+        await saveVault();
+        renderStickies();
+      } else if (m.type === "stickyCreate") {
+        if (!notes.some(x => x.id === m.id)) {
+          notes.push({ id: m.id, type: "sticky", title: "", body: "", images: [], color: nextStickyColor(), updated: Date.now() });
+        }
+        await saveVault();
+        renderStickies();
+      } else if (m.type === "stickyDelete") {
+        notes = notes.filter(x => !(x.id === m.id && x.type === "sticky"));
+        await saveVault();
+        renderStickies();
+      }
+    } catch (e) {
+      toast("同步失敗：" + e.message, 5000);
+    }
+  }
 
   // ===== 記事本 =====
   function currentNote() {
@@ -1288,21 +1445,28 @@
   function renderNotebook() {
     const box = $("nbItems");
     box.textContent = "";
-    const books = notes.filter(n => n.type === "notebook").sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    const books = notes.filter(n => n.type === "notebook");
     books.forEach(n => {
       const it = document.createElement("div");
       it.className = "nbItem" + (n.id === nbSelId ? " on" : "");
+      const h = makeHandle();
+      const label = document.createElement("span");
+      label.className = "nbLabel";
       if (n.locked) {
         const o = openNotes.get(n.id);
-        it.textContent = "🔒 " + (o ? (o.title || "未命名") : "已加密記事本");
+        label.textContent = "🔒 " + (o ? (o.title || "未命名") : "已加密記事本");
       } else {
-        it.textContent = n.title || "未命名";
+        label.textContent = n.title || "未命名";
       }
+      it.append(h, label);
       it.onclick = () => {
         if (nbSelId && nbSelId !== n.id) relockNote(nbSelId);
         nbSelId = n.id;
         renderNotebook();
       };
+      bindDrag(it, h, "nb", n.id, (f, t) => {
+        if (moveInList(notes, f, t)) { persist(); renderNotebook(); }
+      });
       box.appendChild(it);
     });
 
@@ -1324,7 +1488,7 @@
   $("nbAdd").onclick = async () => {
     if (nbSelId) relockNote(nbSelId);
     const n = { id: crypto.randomUUID(), type: "notebook", title: "未命名", body: "", images: [], updated: Date.now() };
-    notes.push(n);
+    notes.unshift(n);
     nbSelId = n.id;
     await persist();
     renderNotebook();
@@ -1533,6 +1697,133 @@
       wrap.append(img, cap, del);
       box.appendChild(wrap);
     });
+  }
+
+  // ===== 小視窗（便籤 / 罐頭語）的程式 =====
+  function miniStatus(t) {
+    $("msStatus").textContent = t;
+  }
+
+  function applyMiniTheme(s) {
+    const bg = (s.settings && s.settings.bg) || "#fafafa";
+    document.body.style.background = bg;
+    document.body.style.color = s.dark ? "#e5e7eb" : "#333";
+  }
+
+  function renderMiniSnip() {
+    const s = lastState;
+    if (!s) return;
+    const list = $("msList");
+    list.textContent = "";
+    const q = $("msSearch").value.trim().toLowerCase();
+    const all = s.snippets || [];
+    const shown = all.filter(x => !q || x.label.toLowerCase().includes(q) || x.text.toLowerCase().includes(q));
+    if (!shown.length) {
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = all.length ? "找不到符合的罐頭語。" : "還沒有罐頭語，請到主畫面新增。";
+      list.appendChild(p);
+      return;
+    }
+    shown.forEach((x, i) => {
+      const d = document.createElement("div");
+      d.className = "msSn";
+      d.style.background = s.cards[i % s.cards.length];
+      const l = document.createElement("strong");
+      l.textContent = x.label;
+      const t = document.createElement("div");
+      t.textContent = x.text;
+      d.append(l, t);
+      d.onclick = async () => {
+        await navigator.clipboard.writeText(x.text);
+        miniStatus("已複製：" + x.label);
+      };
+      list.appendChild(d);
+    });
+  }
+
+  function onMiniState(s) {
+    lastStateAt = Date.now();
+    applyMiniTheme(s);
+    const sig = JSON.stringify(s);
+    if (sig === lastSig) return;
+    lastSig = sig;
+    lastState = s;
+
+    if (MINI === "snip") {
+      renderMiniSnip();
+      miniStatus(s.ready ? "點一下即可複製" : "請先在主畫面解鎖");
+      return;
+    }
+    if (!s.ready) {
+      miniStatus("請先在主畫面解鎖");
+      $("msText").disabled = true;
+      return;
+    }
+    const n = s.stickies.find(x => x.id === MINI_ID);
+    if (!n) {
+      miniStatus("這張便籤已不存在");
+      $("msText").disabled = true;
+      return;
+    }
+    $("msText").disabled = false;
+    $("msCard").style.background = n.color || s.cards[0];
+    if (!miniLoaded) {
+      $("msText").value = n.body;
+      miniLoaded = true;
+    }
+    if (miniText === null) miniStatus("已同步（主畫面會自動儲存）");
+  }
+
+  function flushMini() {
+    clearTimeout(miniTimer);
+    if (miniText === null || !MINI_ID) return;
+    bc.postMessage({ type: "stickyBody", id: MINI_ID, body: miniText });
+    miniText = null;
+  }
+
+  bc.onmessage = e => {
+    const m = e.data || {};
+    if (MINI) {
+      if (m.type === "state") onMiniState(m);
+      return;
+    }
+    if (m.type === "hello") bc.postMessage(snapshot());
+    else onPopupMsg(m);
+  };
+
+  if (MINI) {
+    document.title = MINI === "sticky" ? "便籤" : "罐頭語";
+    $("miniSticky").classList.toggle("hidden", MINI !== "sticky");
+    $("miniSnip").classList.toggle("hidden", MINI !== "snip");
+    if (MINI === "sticky" && !MINI_ID) miniStatus("缺少便籤編號");
+    else miniStatus("連線中…");
+
+    $("msText").addEventListener("input", () => {
+      miniText = $("msText").value;
+      miniStatus("編輯中…");
+      clearTimeout(miniTimer);
+      miniTimer = setTimeout(flushMini, 500);
+    });
+    $("msColor").onclick = () => bc.postMessage({ type: "stickyColor", id: MINI_ID });
+    $("msNew").onclick = () => {
+      const id = crypto.randomUUID();
+      bc.postMessage({ type: "stickyCreate", id });
+      window.open(BASE + "?mini=sticky&id=" + encodeURIComponent(id), "vault-sticky-" + id, "width=320,height=340");
+    };
+    $("msDel").onclick = () => {
+      if (!confirm("確定要刪除這張便籤嗎？")) return;
+      bc.postMessage({ type: "stickyDelete", id: MINI_ID });
+      setTimeout(() => window.close(), 300);
+    };
+    $("msSearch").addEventListener("input", renderMiniSnip);
+    window.addEventListener("pagehide", flushMini);
+
+    bc.postMessage({ type: "hello" });
+    setInterval(() => bc.postMessage({ type: "hello" }), 3000);
+    setInterval(() => {
+      if (Date.now() - lastStateAt > 8000) miniStatus("找不到主畫面，請保持「我的網站清單」主頁開啟");
+    }, 2000);
   }
 </script>
 </body>
