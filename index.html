@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>工作帐号保险库</title>
+<title>我的网站清单</title>
 <style>
   :root { --pastel-1:#FFD6E0; --pastel-2:#FFE5B4; --pastel-3:#FFF5BA; --pastel-4:#C1F0D6; --pastel-5:#BDE0FE; --pastel-6:#D7C8F5; --pastel-7:#FFCFB3; }
   body { font-family: system-ui, "Microsoft JhengHei", sans-serif; margin: 0; background: #fafafa; color: #333; }
@@ -39,7 +39,7 @@
 <body>
 
 <header>
-  <strong>工作帐号保险库</strong>
+  <strong>我的网站清单</strong>
   <button id="logoutBtn" class="gray hidden">登出</button>
 </header>
 
@@ -66,9 +66,12 @@
 
   <!-- 3. 保险库 -->
   <section id="vaultView" class="hidden">
-    <div class="row" style="justify-content: space-between;">
+    <div class="row" style="justify-content: space-between; margin-top: 8px;">
       <button id="openAllBtn">一键开启全部网站</button>
       <button id="addBtn" class="gray">新增网站</button>
+    </div>
+    <div class="row muted" style="margin-top: 6px;">
+      页面背景：<input id="bgColor" type="color" value="#fafafa" style="width: 60px; height: 34px; padding: 2px; margin: 0;">
     </div>
 
     <div id="editor" class="panel hidden" style="margin-top:14px;">
@@ -125,6 +128,7 @@
   let key = null;
   let salt = null;
   let items = [];
+  let settings = { bg: "#fafafa" };
   let editingId = null;
 
   const $ = id => document.getElementById(id);
@@ -161,7 +165,7 @@
 
   async function saveVault() {
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(items)));
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify({ items, settings })));
     await setDoc(doc(db, "vaults", user.uid), {
       salt: b64(salt),
       iv: b64(iv),
@@ -207,7 +211,14 @@
         salt = unb64(d.salt);
         key = await deriveKey(pass, salt);
         const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(d.iv) }, key, unb64(d.data));
-        items = JSON.parse(dec.decode(pt));
+        const p = JSON.parse(dec.decode(pt));
+        if (Array.isArray(p)) {
+          items = p;
+        } else {
+          items = p.items || [];
+          settings = { ...settings, ...(p.settings || {}) };
+        }
+        applyBg();
       } else {
         salt = crypto.getRandomValues(new Uint8Array(16));
         key = await deriveKey(pass, salt);
@@ -228,6 +239,24 @@
     await signOut(auth);
     toast("已登出");
   };
+
+  // ===== 页面背景 =====
+  function applyBg() {
+    const c = settings.bg || "#fafafa";
+    document.body.style.background = c;
+    $("bgColor").value = c;
+  }
+
+  $("bgColor").addEventListener("change", async e => {
+    settings.bg = e.target.value;
+    applyBg();
+    try {
+      await saveVault();
+      toast("背景已储存");
+    } catch (err) {
+      toast("储存失败：" + err.message);
+    }
+  });
 
   // ===== 卡片 =====
   function tbtn(text, fn, extra = "") {
