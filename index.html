@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工作帐号保险库</title>
+<style>
+  body { font-family: system-ui, "Microsoft JhengHei", sans-serif; margin: 0; background: #f4f5f7; color: #222; }
+  header { background: #2d3748; color: #fff; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+  main { max-width: 900px; margin: 0 auto; padding: 16px; }
+  .hidden { display: none !important; }
+  .card { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  button { padding: 8px 12px; border: 0; border-radius: 6px; background: #3b82f6; color: #fff; cursor: pointer; margin: 2px; }
+  button.gray { background: #6b7280; }
+  button.red { background: #dc2626; }
+  input, textarea { width: 100%; box-sizing: border-box; padding: 8px; margin: 4px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .muted { color: #666; font-size: 13px; margin: 4px 0; word-break: break-all; }
+  .center { min-height: 80vh; display: flex; align-items: center; justify-content: center; }
+  .box { width: 320px; max-width: 90vw; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111; color: #fff; padding: 8px 14px; border-radius: 6px; display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <strong>工作帐号保险库</strong>
+  <button id="logoutBtn" class="gray hidden">登出</button>
+</header>
+
+<main>
+  <!-- 1. 登入 -->
+  <section id="loginView" class="center">
+    <div class="card box">
+      <h3>请用 Google 登入</h3>
+      <button id="googleBtn">使用 Google 登入</button>
+      <p id="loginMsg" class="muted"></p>
+    </div>
+  </section>
+
+  <!-- 2. 输入加密密码 -->
+  <section id="unlockView" class="center hidden">
+    <div class="card box">
+      <h3 id="unlockTitle">输入加密密码</h3>
+      <p class="muted">这组密码用来加密你的资料。忘记就无法解开，请妥善保存。</p>
+      <input id="passphrase" type="password" placeholder="加密密码">
+      <button id="unlockBtn">解锁</button>
+      <p id="unlockMsg" class="muted"></p>
+    </div>
+  </section>
+
+  <!-- 3. 保险库 -->
+  <section id="vaultView" class="hidden">
+    <div class="row" style="justify-content: space-between;">
+      <button id="openAllBtn">一键开启全部网站</button>
+      <button id="addBtn" class="gray">新增网站</button>
+    </div>
+
+    <div id="editor" class="card hidden">
+      <input id="eName" placeholder="名称（例如 SH）">
+      <input id="eUrl" placeholder="网址（https://...）">
+      <input id="eUser" placeholder="帐号">
+      <input id="ePass" type="password" placeholder="密码">
+      <textarea id="eNote" rows="2" placeholder="备注（选填）"></textarea>
+      <div class="row">
+        <button id="saveBtn">储存</button>
+        <button id="cancelBtn" class="gray">取消</button>
+      </div>
+      <p id="editMsg" class="muted"></p>
+    </div>
+
+    <div id="list"></div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // ===== 设定区：请填入你自己的 Firebase 专案资料，以及你的 Gmail =====
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBZd0TJTOG-CVRmWCgGFV6Jiq3B3gNV3mk",
+    authDomain: "ningzhao0918.firebaseapp.com",
+    projectId: "ningzhao0918",
+    appId: "1:329444672735:web:a743f288d61f6737e3956a"
+  };
+  const ALLOWED_EMAIL = "shee740113@gmail.com";
+  // ====================================================================
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let user = null;    // 目前登入的 Google 帐号
+  let key = null;     // 由加密密码推导出的金钥（只放在记忆体，不储存）
+  let salt = null;    // 加密用的 salt
+  let items = [];     // 解密后的网站清单
+  let editingId = null;
+
+  const $ = id => document.getElementById(id);
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+  const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+  function show(view) {
+    ["loginView", "unlockView", "vaultView"].forEach(v => $(v).classList.add("hidden"));
+    $(view).classList.remove("hidden");
+    $("logoutBtn").classList.toggle("hidden", view === "loginView");
+  }
+
+  function toast(msg) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.style.display = "block";
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => (t.style.display = "none"), 1500);
+  }
+
+  // ===== 加密 =====
+  async function deriveKey(pass, saltBytes) {
+    const base = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: saltBytes, iterations: 310000, hash: "SHA-256" },
+      base,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  }
+
+  async function saveVault() {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify(items)));
+    await setDoc(doc(db, "vaults", user.uid), {
+      salt: b64(salt),
+      iv: b64(iv),
+      data: b64(ct),
+      updated: Date.now()
+    });
+  }
+
+  // ===== 登入 =====
+  $("googleBtn").onclick = async () => {
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    } catch (e) {
+      $("loginMsg").textContent = "登入失败：" + e.message;
+    }
+  };
+
+  onAuthStateChanged(auth, async u => {
+    if (!u) {
+      user = null; key = null; items = [];
+      show("loginView");
+      return;
+    }
+    if (u.email !== ALLOWED_EMAIL) {
+      $("loginMsg").textContent = "此 Google 帐号没有使用权限";
+      await signOut(auth);
+      return;
+    }
+    user = u;
+    $("unlockTitle").textContent = "输入加密密码";
+    $("passphrase").value = "";
+    $("unlockMsg").textContent = "";
+    show("unlockView");
+  });
+
+  // ===== 解锁 =====
+  $("unlockBtn").onclick = async () => {
+    const pass = $("passphrase").value;
+    if (!pass) { $("unlockMsg").textContent = "请输入加密密码"; return; }
+    try {
+      const snap = await getDoc(doc(db, "vaults", user.uid));
+      if (snap.exists()) {
+        const d = snap.data();
+        salt = unb64(d.salt);
+        key = await deriveKey(pass, salt);
+        const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(d.iv) }, key, unb64(d.data));
+        items = JSON.parse(dec.decode(pt));
+      } else {
+        // 第一次使用：建立新的保险库
+        salt = crypto.getRandomValues(new Uint8Array(16));
+        key = await deriveKey(pass, salt);
+        items = [];
+        await saveVault();
+      }
+      show("vaultView");
+      render();
+    } catch (e) {
+      $("unlockMsg").textContent = "解锁失败：加密密码不正确，或资料损坏";
+    }
+  };
+
+  $("passphrase").addEventListener("keydown", e => { if (e.key === "Enter") $("unlockBtn").click(); });
+
+  // ===== 登出 =====
+  $("logoutBtn").onclick = async () => {
+    await signOut(auth);
+    toast("已登出");
+  };
+
+  // ===== 清单 =====
+  function btn(text, fn, cls = "") {
+    const b = document.createElement("button");
+    b.textContent = text;
+    if (cls) b.className = cls;
+    b.onclick = fn;
+    return b;
+  }
+
+  async function copy(text) {
+    await navigator.clipboard.writeText(text);
+    toast("已复制");
+  }
+
+  function render() {
+    const list = $("list");
+    list.textContent = "";
+    if (!items.length) {
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = "还没有网站，按「新增网站」开始。";
+      list.appendChild(p);
+      return;
+    }
+    items.forEach(it => {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const title = document.createElement("strong");
+      title.textContent = it.name;
+      card.appendChild(title);
+
+      const url = document.createElement("div");
+      url.className = "muted";
+      url.textContent = it.url;
+      card.appendChild(url);
+
+      const acc = document.createElement("div");
+      acc.className = "muted";
+      acc.textContent = "帐号：" + it.username;
+      card.appendChild(acc);
+
+      if (it.note) {
+        const n = document.createElement("div");
+        n.className = "muted";
+        n.textContent = it.note;
+        card.appendChild(n);
+      }
+
+      const row = document.createElement("div");
+      row.className = "row";
+      row.appendChild(btn("开启", () => window.open(it.url, "_blank", "noopener")));
+      row.appendChild(btn("复制帐号", () => copy(it.username)));
+      row.appendChild(btn("复制密码", () => copy(it.password)));
+      row.appendChild(btn("编辑", () => openEditor(it), "gray"));
+      row.appendChild(btn("删除", () => removeItem(it.id), "red"));
+      card.appendChild(row);
+
+      list.appendChild(card);
+    });
+  }
+
+  $("openAllBtn").onclick = () => {
+    items.forEach(it => window.open(it.url, "_blank", "noopener"));
+  };
+
+  // ===== 编辑 =====
+  function openEditor(it = null) {
+    editingId = it ? it.id : null;
+    $("eName").value = it ? it.name : "";
+    $("eUrl").value = it ? it.url : "";
+    $("eUser").value = it ? it.username : "";
+    $("ePass").value = it ? it.password : "";
+    $("eNote").value = it ? (it.note || "") : "";
+    $("editMsg").textContent = "";
+    $("editor").classList.remove("hidden");
+  }
+
+  function closeEditor() {
+    $("editor").classList.add("hidden");
+    editingId = null;
+  }
+
+  $("addBtn").onclick = () => openEditor();
+  $("cancelBtn").onclick = closeEditor;
+
+  $("saveBtn").onclick = async () => {
+    const data = {
+      name: $("eName").value.trim(),
+      url: $("eUrl").value.trim(),
+      username: $("eUser").value,
+      password: $("ePass").value,
+      note: $("eNote").value.trim()
+    };
+    if (!data.name) { $("editMsg").textContent = "请输入名称"; return; }
+    if (!/^https?:\/\//.test(data.url)) { $("editMsg").textContent = "网址要以 https:// 开头"; return; }
+
+    if (editingId) {
+      items = items.map(x => (x.id === editingId ? { ...x, ...data } : x));
+    } else {
+      items.push({ id: crypto.randomUUID(), ...data });
+    }
+    try {
+      await saveVault();
+      closeEditor();
+      render();
+      toast("已储存");
+    } catch (e) {
+      $("editMsg").textContent = "储存失败：" + e.message;
+    }
+  };
+
+  async function removeItem(id) {
+    if (!confirm("确定要删除这个网站吗？")) return;
+    items = items.filter(x => x.id !== id);
+    await saveVault();
+    render();
+  }
+</script>
+</body>
+</html>
