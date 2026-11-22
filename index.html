@@ -30,19 +30,21 @@
   main { flex: 1; padding: 16px; min-width: 0; }
 
   /* 分类面板 */
-  #panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-items: start; margin-top: 12px; }
+  #panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; align-items: start; margin-top: 12px; }
+  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
   .panel-cat { border-radius: 14px; padding: 12px; box-shadow: 0 2px 6px rgba(0,0,0,.06); border: 1px solid rgba(0,0,0,.05); }
   .panel-cat .ph { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
   .panel-cat .ph strong { font-size: 16px; }
   .panel-cat .ph input[type=color] { width: 36px; height: 28px; padding: 2px; margin: 0; }
 
   /* 网站列 */
-  .item { border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; color: #333; display: flex; justify-content: space-between; align-items: center; gap: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .item { border-radius: 12px; padding: 12px; color: #333; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
   .item[draggable="true"] { cursor: grab; }
   .item.over { outline: 2px dashed #7c8db5; }
-  .item .info { min-width: 0; flex: 1; }
-  .item .info strong { display: block; font-size: 16px; }
-  .item .btns { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+  .item .info { min-width: 0; }
+  .item .info strong { display: block; font-size: 16px; margin-bottom: 2px; }
+  .item .muted { word-break: normal; overflow-wrap: anywhere; margin: 2px 0; }
+  .item .btns { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-start; margin-top: 4px; }
   .tbtn { background: rgba(255,255,255,.8); color: #333; border: 1px solid rgba(0,0,0,.08); padding: 6px 8px; font-size: 13px; }
   .tbtn:hover { background: #fff; }
 
@@ -516,7 +518,10 @@
     ph.appendChild(pick);
     p.appendChild(ph);
 
-    arr.forEach(it => p.appendChild(itemRow(it, canReorder)));
+    const grid = document.createElement("div");
+    grid.className = "items";
+    arr.forEach(it => grid.appendChild(itemRow(it, canReorder)));
+    p.appendChild(grid);
     return p;
   }
 
