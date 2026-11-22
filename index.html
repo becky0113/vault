@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>我的网站清单</title>
+<title>我的網站清單</title>
 <style>
   :root { --fg: #333; --muted: #666; --panel: #ffffff; --side: #ffffff; }
   body { font-family: system-ui, "Microsoft JhengHei", sans-serif; margin: 0; background: #fafafa; color: var(--fg); }
@@ -21,7 +21,7 @@
   .center { min-height: 80vh; display: flex; align-items: center; justify-content: center; }
   .box { width: 320px; max-width: 90vw; }
 
-  /* 外框：左侧分类 + 右侧内容 */
+  /* 外框：左側分類 + 右側內容 */
   #shell { display: flex; min-height: calc(100vh - 52px); }
   aside { width: 190px; flex-shrink: 0; background: var(--side); padding: 12px; border-right: 1px solid rgba(127,127,127,.2); }
   aside h4 { margin: 4px 0 8px; color: var(--muted); font-size: 13px; }
@@ -30,7 +30,7 @@
   .cat-item .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); margin-right: 6px; vertical-align: middle; }
   main { flex: 1; padding: 16px; min-width: 0; }
 
-  /* 分类面板 */
+  /* 分類面板 */
   #panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 14px; align-items: start; margin-top: 12px; }
   .panel-cat { border-radius: 14px; padding: 12px; box-shadow: 0 2px 6px rgba(0,0,0,.06); border: 1px solid rgba(0,0,0,.05); }
   .panel-cat .ph { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
@@ -39,7 +39,7 @@
   .panel-cat .tools input[type=color] { width: 36px; height: 28px; padding: 2px; margin: 0; }
   .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
 
-  /* 网站卡片 */
+  /* 網站卡片 */
   .item { border-radius: 12px; padding: 12px; color: #333; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
   .item[draggable="true"] { cursor: grab; }
   .item.over { outline: 2px dashed #7c8db5; }
@@ -50,7 +50,7 @@
   .tbtn { background: rgba(255,255,255,.8); color: #333; border: 1px solid rgba(0,0,0,.08); padding: 6px 8px; font-size: 13px; }
   .tbtn:hover { background: #fff; }
 
-  /* 颜色选择 */
+  /* 顏色選擇 */
   .swatch { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; padding: 0; margin: 0; cursor: pointer; }
   .swatch.on { border-color: #333; }
   #eColor, #bgColor, #hdColor { width: 60px; height: 36px; padding: 2px; margin: 0; }
@@ -68,86 +68,86 @@
 <body>
 
 <header id="hdr">
-  <strong id="hdTitle">我的网站清单</strong>
+  <strong id="hdTitle">我的網站清單</strong>
   <button id="logoutBtn" class="gray hidden">登出</button>
 </header>
 
 <!-- 1. 登入 -->
 <section id="loginView" class="center">
   <div class="panel box">
-    <h3>请用 Google 登入</h3>
+    <h3>請用 Google 登入</h3>
     <button id="googleBtn">使用 Google 登入</button>
     <p id="loginMsg" class="muted"></p>
   </div>
 </section>
 
-<!-- 2. 输入加密密码 -->
+<!-- 2. 輸入加密密碼 -->
 <section id="unlockView" class="center hidden">
   <div class="panel box">
-    <h3 id="unlockTitle">输入加密密码</h3>
-    <p class="muted">这组密码用来加密你的资料。忘记就无法解开，请妥善保存。</p>
-    <input id="passphrase" type="password" placeholder="加密密码">
-    <button id="unlockBtn">解锁</button>
+    <h3 id="unlockTitle">輸入加密密碼</h3>
+    <p class="muted">這組密碼用來加密你的資料。忘記就無法解開，請妥善保存。</p>
+    <input id="passphrase" type="password" placeholder="加密密碼">
+    <button id="unlockBtn">解鎖</button>
     <p id="unlockMsg" class="muted"></p>
   </div>
 </section>
 
-<!-- 3. 清单 -->
+<!-- 3. 清單 -->
 <div id="vaultView" class="hidden" style="display:none;">
   <div id="shell">
     <aside>
-      <h4>分类</h4>
+      <h4>分類</h4>
       <div id="catList"></div>
     </aside>
 
     <main>
       <div class="row" style="justify-content: space-between;">
-        <button id="openAllBtn">一键开启全部网站</button>
-        <button id="addBtn" class="gray">新增网站</button>
+        <button id="openAllBtn">一鍵開啟全部網站</button>
+        <button id="addBtn" class="gray">新增網站</button>
       </div>
 
-      <input id="search" placeholder="搜寻名称、网址、帐号、分类…" style="margin-top: 10px;">
+      <input id="search" placeholder="搜尋名稱、網址、帳號、分類…" style="margin-top: 10px;">
 
       <div class="row muted" style="margin-top: 4px;">
-        标题名称：<input id="titleInput" placeholder="我的网站清单" style="width: 180px; margin: 0;">
-        配色主题：
+        標題名稱：<input id="titleInput" placeholder="我的網站清單" style="width: 180px; margin: 0;">
+        配色主題：
         <select id="themeSel"></select>
       </div>
 
       <div class="row muted" style="margin-top: 4px;">
-        字体：
+        字體：
         <select id="fontSize">
           <option value="s">小</option>
           <option value="m">中</option>
           <option value="l">大</option>
         </select>
-        页面背景：<input id="bgColor" type="color" value="#fafafa">
-        标题列颜色：<input id="hdColor" type="color" value="#7c8db5">
+        頁面背景：<input id="bgColor" type="color" value="#fafafa">
+        標題列顏色：<input id="hdColor" type="color" value="#7c8db5">
       </div>
 
       <div class="row" style="margin-top: 6px;">
-        <button id="backupBtn" class="gray">下载加密备份</button>
-        <label class="muted">还原备份：<input id="restoreFile" type="file" accept=".json" style="width: auto; border: 0; padding: 0;"></label>
+        <button id="backupBtn" class="gray">下載加密備份</button>
+        <label class="muted">還原備份：<input id="restoreFile" type="file" accept=".json" style="width: auto; border: 0; padding: 0;"></label>
       </div>
 
       <div id="editor" class="panel hidden" style="margin-top:14px;">
-        <input id="eName" placeholder="名称（例如 SH）">
-        <input id="eCat" list="catOptions" placeholder="分类（选填，例如 平台 A）">
+        <input id="eName" placeholder="名稱（例如 SH）">
+        <input id="eCat" list="catOptions" placeholder="分類（選填，例如 平台 A）">
         <datalist id="catOptions"></datalist>
-        <input id="eUrl" placeholder="网址（https://...）">
-        <input id="eUser" placeholder="帐号">
-        <input id="ePass" type="password" placeholder="密码">
-        <textarea id="eNote" rows="2" placeholder="备注（选填）"></textarea>
+        <input id="eUrl" placeholder="網址（https://...）">
+        <input id="eUser" placeholder="帳號">
+        <input id="ePass" type="password" placeholder="密碼">
+        <textarea id="eNote" rows="2" placeholder="備註（選填）"></textarea>
 
-        <p class="muted">卡片颜色</p>
+        <p class="muted">卡片顏色</p>
         <div class="row">
           <div id="swatches" class="row"></div>
-          <label class="row muted">自选：<input id="eColor" type="color" value="#FFD6E0"></label>
-          <label class="row muted">色码：<input id="eHex" placeholder="#FFD6E0" maxlength="7" style="width: 110px; margin: 0;"></label>
+          <label class="row muted">自選：<input id="eColor" type="color" value="#FFD6E0"></label>
+          <label class="row muted">色碼：<input id="eHex" placeholder="#FFD6E0" maxlength="7" style="width: 110px; margin: 0;"></label>
         </div>
 
         <div class="row" style="margin-top:10px;">
-          <button id="saveBtn">储存</button>
+          <button id="saveBtn">儲存</button>
           <button id="cancelBtn" class="gray">取消</button>
         </div>
         <p id="editMsg" class="muted"></p>
@@ -167,7 +167,7 @@
   import { getFirestore, doc, getDoc, setDoc }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // ===== 设定区 =====
+  // ===== 設定區 =====
   const FIREBASE_CONFIG = {
     apiKey: "AIzaSyBZd0TJTOG-CVRmWCgGFV6Jiq3B3gNV3mk",
     authDomain: "ningzhao0918.firebaseapp.com",
@@ -177,24 +177,24 @@
   const ALLOWED_EMAIL = "shee740113@gmail.com";
   // ====================================================================
 
-  // 内置配色主题：header 标题列、bg 页面背景、panel 分类面板、cards 卡片可选色
+  // 內建配色主題：header 標題列、bg 頁面背景、panel 分類面板、cards 卡片可選色
   const THEMES = {
     "粉彩": { header: "#7c8db5", bg: "#fafafa", panel: "#ffffff",
       cards: ["#FFD6E0", "#FFE5B4", "#FFF5BA", "#C1F0D6", "#BDE0FE", "#D7C8F5", "#FFCFB3"] },
-    "莫兰迪": { header: "#8a9a8b", bg: "#f3f0ea", panel: "#ebe6df",
+    "莫蘭迪": { header: "#8a9a8b", bg: "#f3f0ea", panel: "#ebe6df",
       cards: ["#C9B6A6", "#B8C4C2", "#D8C3B0", "#A7B1A8", "#CFC0BC", "#AEB8C7", "#E0D2C2"] },
     "星空": { header: "#1e2a4a", bg: "#0f1629", panel: "#1b2540",
       cards: ["#C7D2FE", "#DDD6FE", "#BAE6FD", "#A5F3FC", "#FBCFE8", "#E9D5FF", "#BFDBFE"] },
     "奶油": { header: "#c8a27a", bg: "#fff8ee", panel: "#fff1dc",
       cards: ["#FFE8C2", "#F9DCC4", "#FDF0D5", "#F6D6B8", "#EFE3C8", "#FBE7D1", "#E8D5B7"] },
-    "海岛": { header: "#0f8b8d", bg: "#e6f7f7", panel: "#d2f0ee",
+    "海島": { header: "#0f8b8d", bg: "#e6f7f7", panel: "#d2f0ee",
       cards: ["#A8E6E6", "#9FD8F0", "#B5F0D8", "#FFE9A8", "#BFE9FF", "#CDEFE0", "#F7E7B5"] },
-    "绿色治愈": { header: "#4f7f5f", bg: "#f2f7f1", panel: "#e2efe0",
+    "綠色療癒": { header: "#4f7f5f", bg: "#f2f7f1", panel: "#e2efe0",
       cards: ["#C8E6C9", "#DCEDC8", "#B2DFDB", "#E6F4D7", "#C5E1A5", "#D7EFD0", "#BFE8C8"] }
   };
   const ZOOM = { s: 0.9, m: 1, l: 1.2 };
-  const NOCAT = "未分类";
-  const DEFAULT_TITLE = "我的网站清单";
+  const NOCAT = "未分類";
+  const DEFAULT_TITLE = "我的網站清單";
 
   const app = initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
@@ -230,7 +230,7 @@
     toast._timer = setTimeout(() => (t.style.display = "none"), 1500);
   }
 
-  // ===== 颜色工具 =====
+  // ===== 顏色工具 =====
   function isDark(hex) {
     const n = parseInt(hex.slice(1), 16);
     const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
@@ -267,7 +267,7 @@
       await saveVault();
       if (msg) toast(msg);
     } catch (e) {
-      toast("储存失败：" + e.message);
+      toast("儲存失敗：" + e.message);
     }
   }
 
@@ -276,7 +276,7 @@
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
     } catch (e) {
-      $("loginMsg").textContent = "登入失败：" + e.message;
+      $("loginMsg").textContent = "登入失敗：" + e.message;
     }
   };
 
@@ -287,7 +287,7 @@
       return;
     }
     if (u.email !== ALLOWED_EMAIL) {
-      $("loginMsg").textContent = "此 Google 帐号没有使用权限";
+      $("loginMsg").textContent = "此 Google 帳號沒有使用權限";
       await signOut(auth);
       return;
     }
@@ -297,10 +297,10 @@
     show("unlockView");
   });
 
-  // ===== 解锁 =====
+  // ===== 解鎖 =====
   $("unlockBtn").onclick = async () => {
     const pass = $("passphrase").value;
-    if (!pass) { $("unlockMsg").textContent = "请输入加密密码"; return; }
+    if (!pass) { $("unlockMsg").textContent = "請輸入加密密碼"; return; }
     try {
       const snap = await getDoc(doc(db, "vaults", user.uid));
       if (snap.exists()) {
@@ -326,7 +326,7 @@
       show("vaultView");
       render();
     } catch (e) {
-      $("unlockMsg").textContent = "解锁失败：加密密码不正确，或资料损坏";
+      $("unlockMsg").textContent = "解鎖失敗：加密密碼不正確，或資料損壞";
     }
   };
 
@@ -338,7 +338,7 @@
     toast("已登出");
   };
 
-  // ===== 外观设定 =====
+  // ===== 外觀設定 =====
   function applyAll() {
     applyThemeSelect();
     applyBg();
@@ -408,31 +408,31 @@
     settings.bg = e.target.value;
     applyBg();
     render();
-    await persist("背景已储存");
+    await persist("背景已儲存");
   });
 
   $("hdColor").addEventListener("change", async e => {
     settings.header = e.target.value;
     applyHeader();
-    await persist("标题列颜色已储存");
+    await persist("標題列顏色已儲存");
   });
 
   $("titleInput").addEventListener("change", async e => {
     settings.title = e.target.value.trim() || DEFAULT_TITLE;
     applyTitle();
-    await persist("标题已储存");
+    await persist("標題已儲存");
   });
 
   $("fontSize").addEventListener("change", async e => {
     settings.font = e.target.value;
     applyFont();
-    await persist("字体已储存");
+    await persist("字體已儲存");
   });
 
-  // ===== 搜寻 =====
+  // ===== 搜尋 =====
   $("search").addEventListener("input", render);
 
-  // ===== 备份与还原 =====
+  // ===== 備份與還原 =====
   $("backupBtn").onclick = async () => {
     try {
       const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -441,12 +441,12 @@
       const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "网站清单备份-" + new Date().toISOString().slice(0, 10) + ".json";
+      a.download = "網站清單備份-" + new Date().toISOString().slice(0, 10) + ".json";
       a.click();
       URL.revokeObjectURL(a.href);
-      toast("备份已下载（请妥善保管）");
+      toast("備份已下載（請妥善保管）");
     } catch (e) {
-      toast("备份失败：" + e.message);
+      toast("備份失敗：" + e.message);
     }
   };
 
@@ -454,28 +454,28 @@
     const file = e.target.files[0];
     e.target.value = "";
     if (!file) return;
-    const pass = prompt("请输入这份备份当时使用的加密密码：");
+    const pass = prompt("請輸入這份備份當時使用的加密密碼：");
     if (!pass) return;
     try {
       const d = JSON.parse(await file.text());
       const k = await deriveKey(pass, unb64(d.salt));
       const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(d.iv) }, k, unb64(d.data));
       const p = JSON.parse(dec.decode(pt));
-      if (!confirm("还原会覆盖目前的清单，确定要还原吗？")) return;
+      if (!confirm("還原會覆蓋目前的清單，確定要還原嗎？")) return;
       items = p.items || [];
       settings = { ...settings, ...(p.settings || {}) };
       applyAll();
-      await persist("已还原");
+      await persist("已還原");
       render();
     } catch (err) {
-      toast("还原失败：密码不正确或档案已损坏");
+      toast("還原失敗：密碼不正確或檔案已損壞");
     }
   });
 
-  // ===== 复制 =====
+  // ===== 複製 =====
   async function copy(text) {
     await navigator.clipboard.writeText(text);
-    toast("已复制");
+    toast("已複製");
   }
 
   // ===== 排序 =====
@@ -500,7 +500,7 @@
     render();
   }
 
-  // ===== 分类侧栏 =====
+  // ===== 分類側欄 =====
   function catOf(it) { return it.category || NOCAT; }
   function catColor(c) { return (settings.catColors || {})[c] || theme().panel; }
 
@@ -534,7 +534,7 @@
     counts.forEach((n, c) => addBtn(c, n, c, catColor(c)));
   }
 
-  // ===== 主画面 =====
+  // ===== 主畫面 =====
   function render() {
     renderSidebar();
     const panels = $("panels");
@@ -543,7 +543,7 @@
     if (!items.length) {
       const p = document.createElement("p");
       p.className = "muted";
-      p.textContent = "还没有网站，按「新增网站」开始。";
+      p.textContent = "還沒有網站，按「新增網站」開始。";
       panels.appendChild(p);
       renderCatOptions();
       return;
@@ -559,7 +559,7 @@
     if (!visible.length) {
       const p = document.createElement("p");
       p.className = "muted";
-      p.textContent = "找不到符合的网站。";
+      p.textContent = "找不到符合的網站。";
       panels.appendChild(p);
       renderCatOptions();
       return;
@@ -597,16 +597,16 @@
 
     const tools = document.createElement("div");
     tools.className = "tools";
-    tools.appendChild(smallBtn("开启本类全部", () => arr.forEach(it => window.open(it.url, "_blank", "noopener"))));
+    tools.appendChild(smallBtn("開啟本類全部", () => arr.forEach(it => window.open(it.url, "_blank", "noopener"))));
 
     const panelPick = document.createElement("input");
     panelPick.type = "color";
     panelPick.value = catColor(cat);
-    panelPick.title = "面板颜色";
+    panelPick.title = "面板顏色";
     panelPick.addEventListener("change", async e => {
       settings.catColors = { ...(settings.catColors || {}), [cat]: e.target.value };
       render();
-      await persist("面板颜色已储存");
+      await persist("面板顏色已儲存");
     });
     const panelLabel = document.createElement("span");
     panelLabel.textContent = "面板";
@@ -616,11 +616,11 @@
     const cardPick = document.createElement("input");
     cardPick.type = "color";
     cardPick.value = arr[0].color || palette()[0];
-    cardPick.title = "本类卡片颜色";
+    cardPick.title = "本類卡片顏色";
     cardPick.addEventListener("change", async e => {
       items.forEach(x => { if (catOf(x) === cat) x.color = e.target.value; });
       render();
-      await persist("本类卡片颜色已更新");
+      await persist("本類卡片顏色已更新");
     });
     const cardLabel = document.createElement("span");
     cardLabel.textContent = "卡片";
@@ -657,7 +657,7 @@
     info.appendChild(name);
     const acc = document.createElement("div");
     acc.className = "muted";
-    acc.textContent = "帐号：" + it.username;
+    acc.textContent = "帳號：" + it.username;
     info.appendChild(acc);
     if (it.note) {
       const n = document.createElement("div");
@@ -669,11 +669,11 @@
 
     const btns = document.createElement("div");
     btns.className = "btns";
-    btns.appendChild(tbtn("开启", () => window.open(it.url, "_blank", "noopener")));
-    btns.appendChild(tbtn("复制帐号", () => copy(it.username)));
-    btns.appendChild(tbtn("复制密码", () => copy(it.password)));
-    btns.appendChild(tbtn("编辑", () => openEditor(it)));
-    btns.appendChild(tbtn("删除", () => removeItem(it.id), "red"));
+    btns.appendChild(tbtn("開啟", () => window.open(it.url, "_blank", "noopener")));
+    btns.appendChild(tbtn("複製帳號", () => copy(it.username)));
+    btns.appendChild(tbtn("複製密碼", () => copy(it.password)));
+    btns.appendChild(tbtn("編輯", () => openEditor(it)));
+    btns.appendChild(tbtn("刪除", () => removeItem(it.id), "red"));
     if (canReorder) {
       btns.appendChild(tbtn("↑", () => moveStep(it.id, -1), "gray"));
       btns.appendChild(tbtn("↓", () => moveStep(it.id, 1), "gray"));
@@ -719,7 +719,7 @@
     items.forEach(it => window.open(it.url, "_blank", "noopener"));
   };
 
-  // ===== 颜色选择 =====
+  // ===== 顏色選擇 =====
   function setColor(c) {
     $("eColor").value = c;
     if (document.activeElement !== $("eHex")) $("eHex").value = c.toUpperCase();
@@ -749,11 +749,11 @@
       $("editMsg").textContent = "";
       setColor(v);
     } else if (v.length >= 7) {
-      $("editMsg").textContent = "色码格式不正确，要 6 位数，例如 #215487";
+      $("editMsg").textContent = "色碼格式不正確，要 6 位數，例如 #215487";
     }
   });
 
-  // ===== 编辑 =====
+  // ===== 編輯 =====
   function openEditor(it = null) {
     editingId = it ? it.id : null;
     $("eName").value = it ? it.name : "";
@@ -788,8 +788,8 @@
       note: $("eNote").value.trim(),
       color: $("eColor").value
     };
-    if (!data.name) { $("editMsg").textContent = "请输入名称"; return; }
-    if (!/^https?:\/\//.test(data.url)) { $("editMsg").textContent = "网址要以 https:// 开头"; return; }
+    if (!data.name) { $("editMsg").textContent = "請輸入名稱"; return; }
+    if (!/^https?:\/\//.test(data.url)) { $("editMsg").textContent = "網址要以 https:// 開頭"; return; }
 
     if (editingId) {
       items = items.map(x => (x.id === editingId ? { ...x, ...data } : x));
@@ -800,14 +800,14 @@
       await saveVault();
       closeEditor();
       render();
-      toast("已储存");
+      toast("已儲存");
     } catch (e) {
-      $("editMsg").textContent = "储存失败：" + e.message;
+      $("editMsg").textContent = "儲存失敗：" + e.message;
     }
   };
 
   async function removeItem(id) {
-    if (!confirm("确定要删除这个网站吗？")) return;
+    if (!confirm("確定要刪除這個網站嗎？")) return;
     items = items.filter(x => x.id !== id);
     await persist();
     render();
