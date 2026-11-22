@@ -104,6 +104,7 @@
   .msSn { border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; color: #333; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   .msSn:hover { outline: 2px solid #7c8db5; }
   .msSn .msTxt { white-space: pre-wrap; word-break: break-word; margin-top: 2px; overflow: hidden; max-height: 3.2em; }
+  .msSn:hover .msTxt { max-height: none; } /* 滑鼠移上去：卡片原地展開，不浮窗 */
   .msBtns { display: flex; gap: 4px; margin-top: 4px; }
   .msBtns button { margin: 0; padding: 4px 8px; font-size: 13px; }
   #msForm { background: rgba(255,255,255,.7); border-radius: 10px; padding: 8px; color: #333; }
@@ -1466,7 +1467,7 @@
     if (note.locked) {
       const o = openNotes.get(note.id);
       if (!o) return;
-      note.sealed = await sealWith(o.key, JSON.stringify({ title: o.title, body: o.body, images: o.images }));
+      note.sealed = await sealWith(o.key, JSON.stringify({ body: o.body, images: o.images }));
     }
     await persist();
   }
@@ -1489,8 +1490,7 @@
       const label = document.createElement("span");
       label.className = "nbLabel";
       if (n.locked) {
-        const o = openNotes.get(n.id);
-        label.textContent = "🔒 " + (o ? (o.title || "未命名") : "已加密記事本");
+        label.textContent = "🔒 " + (n.title || "未命名");
       } else {
         label.textContent = n.title || "未命名";
       }
@@ -1535,6 +1535,7 @@
     if (!note || !nbView(note)) return;
     const title = $("nbTitle").value.trim() || "未命名";
     const body = $("nbBody").value;
+    note.title = title; // 標題永遠明文顯示，只有內容加密
     if (note.locked) {
       const o = openNotes.get(note.id);
       o.title = title;
@@ -1569,9 +1570,9 @@
         imgCache.delete(id);
       }
       note.salt = b64(saltBytes);
-      note.sealed = await sealWith(nk, JSON.stringify({ title, body, images }));
+      note.title = title;
+      note.sealed = await sealWith(nk, JSON.stringify({ body, images }));
       note.locked = true;
-      delete note.title;
       delete note.body;
       delete note.images;
       openNotes.set(note.id, { key: nk, title, body, images });
@@ -1591,7 +1592,12 @@
     try {
       const nk = await deriveKey(pass, unb64(note.salt));
       const p = JSON.parse(await openWith(nk, note.sealed));
-      openNotes.set(note.id, { key: nk, title: p.title || "", body: p.body || "", images: p.images || [] });
+      openNotes.set(note.id, { key: nk, title: note.title || p.title || "", body: p.body || "", images: p.images || [] });
+      // 舊版加密的記事本：標題補成明文，並以新格式重新加密
+      if (!note.title && p.title) {
+        note.title = p.title;
+        await commitNote(note);
+      }
       renderNotebook();
     } catch (e) {
       toast("密碼不正確");
@@ -1804,9 +1810,6 @@
       bt.append(ed, del);
 
       d.append(l, t, bt);
-      // 滑鼠移過去：預覽完整內容
-      d.addEventListener("mouseenter", () => showTip(d, x.text));
-      d.addEventListener("mouseleave", hideTip);
       // 點卡片本體：複製（不變）
       d.onclick = async () => {
         await navigator.clipboard.writeText(x.text);
@@ -1841,23 +1844,6 @@
     closeMiniForm();
   };
   $("msSearch").addEventListener("input", renderMiniSnip);
-
-  // 滑鼠預覽框
-  function showTip(el, text) {
-    const tip = $("tipBox");
-    tip.textContent = text;
-    tip.style.display = "block";
-    const r = el.getBoundingClientRect();
-    const th = tip.offsetHeight;
-    let top = r.bottom + 6;
-    if (top + th > window.innerHeight) top = Math.max(6, r.top - th - 6);
-    tip.style.left = Math.max(6, Math.min(r.left, window.innerWidth - tip.offsetWidth - 6)) + "px";
-    tip.style.top = top + "px";
-  }
-
-  function hideTip() {
-    $("tipBox").style.display = "none";
-  }
 
   // ----- 便籤小窗 -----
   const FONT_KEY = "vault-sticky-font";
