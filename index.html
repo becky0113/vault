@@ -97,13 +97,18 @@
   body.mini #miniView { display: flex; }
   body.mini #loginView, body.mini #unlockView, body.mini #vaultView, body.mini #lightbox, body.mini #toast, body.mini header { display: none !important; }
   #miniSticky { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-  .mini-bar { display: flex; gap: 4px; flex-wrap: wrap; }
+  .mini-bar { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
   .mini-bar button { margin: 0; }
   #msCard { flex: 1; display: flex; border-radius: 12px; padding: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
-  #msText { flex: 1; min-height: 240px; width: 100%; border: 0; background: transparent; resize: none; font-size: 15px; color: #333; padding: 4px; margin: 0; }
+  #msText { flex: 1; min-height: 240px; width: 100%; border: 0; background: transparent; resize: none; color: #333; padding: 4px; margin: 0; font-size: 16px; line-height: 1.5; }
   .msSn { border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; cursor: pointer; color: #333; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
   .msSn:hover { outline: 2px solid #7c8db5; }
-  .msSn div { white-space: pre-wrap; word-break: break-word; margin-top: 2px; }
+  .msSn .msTxt { white-space: pre-wrap; word-break: break-word; margin-top: 2px; overflow: hidden; max-height: 3.2em; }
+  .msBtns { display: flex; gap: 4px; margin-top: 4px; }
+  .msBtns button { margin: 0; padding: 4px 8px; font-size: 13px; }
+  #msForm { background: rgba(255,255,255,.7); border-radius: 10px; padding: 8px; color: #333; }
+  #msForm input, #msForm textarea { background: #fff; }
+  #tipBox { position: fixed; z-index: 30; max-width: 360px; background: #222; color: #fff; padding: 10px 12px; border-radius: 8px; font-size: 15px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; box-shadow: 0 4px 12px rgba(0,0,0,.3); pointer-events: none; display: none; }
 
   @media (max-width: 700px) {
     #shell { flex-direction: column; }
@@ -127,19 +132,34 @@
   <div id="msStatus" class="muted"></div>
   <div id="miniSticky" class="hidden">
     <div class="mini-bar">
+      <button id="msSync">同步到主工具</button>
+      <button id="msFontDn" class="gray">A－</button>
+      <button id="msFontUp" class="gray">A＋</button>
       <button id="msColor" class="gray">換色</button>
       <button id="msNew" class="gray">＋ 新便籤</button>
       <button id="msDel" class="red">刪除</button>
     </div>
     <div id="msCard" style="background:#FFF5BA;">
-      <textarea id="msText" placeholder="寫點什麼…"></textarea>
+      <textarea id="msText" placeholder="寫點什麼…（Ctrl+S 同步）"></textarea>
     </div>
   </div>
   <div id="miniSnip" class="hidden">
-    <input id="msSearch" placeholder="搜尋罐頭語…">
+    <div class="mini-bar">
+      <input id="msSearch" placeholder="搜尋罐頭語…" style="flex:1; width:auto; margin:0;">
+      <button id="msAdd" class="gray">＋ 新增</button>
+    </div>
+    <div id="msForm" class="hidden">
+      <input id="msLabel" placeholder="標籤（例如 稍候）">
+      <textarea id="msBody" rows="3" placeholder="內容"></textarea>
+      <div class="mini-bar">
+        <button id="msFormSave">儲存並同步</button>
+        <button id="msFormCancel" class="gray">取消</button>
+      </div>
+    </div>
     <div id="msList" style="margin-top:8px;"></div>
   </div>
 </div>
+<div id="tipBox"></div>
 
 <!-- 1. 登入 -->
 <section id="loginView" class="center">
@@ -255,7 +275,7 @@
   <!-- 便籤 -->
   <div id="stickyArea" class="area hidden">
     <div class="row"><button id="stAdd">＋ 新增便籤（開新小窗）</button></div>
-    <p class="muted">每張便籤會開成獨立的小視窗；拖曳 ⋮⋮ 可以調整順序。</p>
+    <p class="muted">每張便籤會開成獨立的小視窗；小窗內按「同步到主工具」才會更新這裡。拖曳 ⋮⋮ 可以調整順序。</p>
     <div id="stList" style="margin-top:12px;"></div>
   </div>
 
@@ -376,8 +396,9 @@
   let lastSig = "";
   let lastStateAt = 0;
   let miniLoaded = false;
-  let miniText = null;
-  let miniTimer = null;
+  let syncedBody = "";      // 便籤：上次已同步到主工具的內容
+  let pendingBody = null;   // 便籤：送出中、等待主畫面回應的內容
+  let pendingAck = null;    // 等待主畫面回應的項目 id
 
   const $ = id => document.getElementById(id);
   const textEnc = new TextEncoder();
@@ -1371,7 +1392,7 @@
     renderStickies();
   };
 
-  // 接收小視窗傳來的要求（只有主畫面會處理）
+  // 接收小視窗傳來的要求（只有主畫面會處理），處理完回傳 ack
   async function onPopupMsg(m) {
     if (!key || !user) return;
     try {
@@ -1381,6 +1402,7 @@
         n.body = m.body;
         n.updated = Date.now();
         await saveVault();
+        if (area === "sticky") renderStickies();
       } else if (m.type === "stickyColor") {
         const n = notes.find(x => x.id === m.id && x.type === "sticky");
         if (!n) return;
@@ -1398,7 +1420,21 @@
         notes = notes.filter(x => !(x.id === m.id && x.type === "sticky"));
         await saveVault();
         renderStickies();
+      } else if (m.type === "snipUpsert") {
+        const s = m.snip;
+        const i = snippets.findIndex(x => x.id === s.id);
+        if (i >= 0) snippets[i] = { ...snippets[i], label: s.label, text: s.text };
+        else snippets.push({ id: s.id, label: s.label, text: s.text });
+        await saveVault();
+        if (area === "snip") renderSnippets();
+      } else if (m.type === "snipDelete") {
+        snippets = snippets.filter(x => x.id !== m.id);
+        await saveVault();
+        if (area === "snip") renderSnippets();
+      } else {
+        return;
       }
+      bc.postMessage({ type: "ack", id: m.id === undefined ? m.snip && m.snip.id : m.id });
     } catch (e) {
       toast("同步失敗：" + e.message, 5000);
     }
@@ -1710,6 +1746,21 @@
     document.body.style.color = s.dark ? "#e5e7eb" : "#333";
   }
 
+  // 送出給主畫面；若一段時間沒有回應就提醒
+  function sendToMain(msg) {
+    bc.postMessage(msg);
+    pendingAck = msg.id === undefined ? msg.snip.id : msg.id;
+    const waitId = pendingAck;
+    miniStatus("同步中…");
+    setTimeout(() => {
+      if (pendingAck === waitId) {
+        pendingAck = null;
+        miniStatus("未收到主畫面回應，請確認主畫面已開啟並解鎖");
+      }
+    }, 2500);
+  }
+
+  // ----- 罐頭語小窗 -----
   function renderMiniSnip() {
     const s = lastState;
     if (!s) return;
@@ -1721,7 +1772,7 @@
     if (!shown.length) {
       const p = document.createElement("p");
       p.className = "muted";
-      p.textContent = all.length ? "找不到符合的罐頭語。" : "還沒有罐頭語，請到主畫面新增。";
+      p.textContent = all.length ? "找不到符合的罐頭語。" : "還沒有罐頭語，請按上方「＋ 新增」。";
       list.appendChild(p);
       return;
     }
@@ -1729,17 +1780,121 @@
       const d = document.createElement("div");
       d.className = "msSn";
       d.style.background = s.cards[i % s.cards.length];
+
       const l = document.createElement("strong");
       l.textContent = x.label;
       const t = document.createElement("div");
+      t.className = "msTxt";
       t.textContent = x.text;
-      d.append(l, t);
+
+      const bt = document.createElement("div");
+      bt.className = "msBtns";
+      const ed = document.createElement("button");
+      ed.className = "gray";
+      ed.textContent = "編輯";
+      ed.onclick = e => { e.stopPropagation(); openMiniForm(x); };
+      const del = document.createElement("button");
+      del.className = "red";
+      del.textContent = "刪除";
+      del.onclick = e => {
+        e.stopPropagation();
+        if (!confirm("確定要刪除這則罐頭語嗎？\n「" + x.label + "」")) return;
+        sendToMain({ type: "snipDelete", id: x.id });
+      };
+      bt.append(ed, del);
+
+      d.append(l, t, bt);
+      // 滑鼠移過去：預覽完整內容
+      d.addEventListener("mouseenter", () => showTip(d, x.text));
+      d.addEventListener("mouseleave", hideTip);
+      // 點卡片本體：複製（不變）
       d.onclick = async () => {
         await navigator.clipboard.writeText(x.text);
         miniStatus("已複製：" + x.label);
       };
       list.appendChild(d);
     });
+  }
+
+  function openMiniForm(s = null) {
+    $("msForm").dataset.id = s ? s.id : "";
+    $("msLabel").value = s ? s.label : "";
+    $("msBody").value = s ? s.text : "";
+    $("msForm").classList.remove("hidden");
+    $("msLabel").focus();
+  }
+
+  function closeMiniForm() {
+    $("msForm").classList.add("hidden");
+    $("msForm").dataset.id = "";
+  }
+
+  $("msAdd").onclick = () => openMiniForm(null);
+  $("msFormCancel").onclick = closeMiniForm;
+  $("msFormSave").onclick = () => {
+    const label = $("msLabel").value.trim();
+    const text = $("msBody").value.trim();
+    if (!label) { miniStatus("請輸入標籤"); return; }
+    if (!text) { miniStatus("請輸入內容"); return; }
+    const id = $("msForm").dataset.id || crypto.randomUUID();
+    sendToMain({ type: "snipUpsert", snip: { id, label, text } });
+    closeMiniForm();
+  };
+  $("msSearch").addEventListener("input", renderMiniSnip);
+
+  // 滑鼠預覽框
+  function showTip(el, text) {
+    const tip = $("tipBox");
+    tip.textContent = text;
+    tip.style.display = "block";
+    const r = el.getBoundingClientRect();
+    const th = tip.offsetHeight;
+    let top = r.bottom + 6;
+    if (top + th > window.innerHeight) top = Math.max(6, r.top - th - 6);
+    tip.style.left = Math.max(6, Math.min(r.left, window.innerWidth - tip.offsetWidth - 6)) + "px";
+    tip.style.top = top + "px";
+  }
+
+  function hideTip() {
+    $("tipBox").style.display = "none";
+  }
+
+  // ----- 便籤小窗 -----
+  const FONT_KEY = "vault-sticky-font";
+  let stickyFont = 16;
+  try { stickyFont = +localStorage.getItem(FONT_KEY) || 16; } catch (e) {}
+
+  function setStickyFont(px) {
+    stickyFont = Math.max(12, Math.min(40, px));
+    $("msText").style.fontSize = stickyFont + "px";
+    try { localStorage.setItem(FONT_KEY, String(stickyFont)); } catch (e) {}
+  }
+
+  function stickyDirty() {
+    return $("msText").value !== syncedBody;
+  }
+
+  function refreshStickyStatus() {
+    if (pendingAck) return;
+    miniStatus(stickyDirty() ? "未同步：按「同步到主工具」才會更新主工具" : "已同步");
+  }
+
+  function syncSticky() {
+    if (!MINI_ID) return;
+    pendingBody = $("msText").value;
+    sendToMain({ type: "stickyBody", id: MINI_ID, body: pendingBody });
+  }
+
+  function onAck(id) {
+    if (id !== pendingAck) return;
+    pendingAck = null;
+    if (MINI === "sticky") {
+      if (pendingBody !== null) syncedBody = pendingBody;
+      pendingBody = null;
+      refreshStickyStatus();
+    } else {
+      miniStatus("已同步到主工具");
+    }
   }
 
   function onMiniState(s) {
@@ -1752,7 +1907,7 @@
 
     if (MINI === "snip") {
       renderMiniSnip();
-      miniStatus(s.ready ? "點一下即可複製" : "請先在主畫面解鎖");
+      if (!pendingAck) miniStatus(s.ready ? "點一下即可複製" : "請先在主畫面解鎖");
       return;
     }
     if (!s.ready) {
@@ -1770,22 +1925,25 @@
     $("msCard").style.background = n.color || s.cards[0];
     if (!miniLoaded) {
       $("msText").value = n.body;
+      syncedBody = n.body;
       miniLoaded = true;
+      refreshStickyStatus();
     }
-    if (miniText === null) miniStatus("已同步（主畫面會自動儲存）");
   }
 
-  function flushMini() {
-    clearTimeout(miniTimer);
-    if (miniText === null || !MINI_ID) return;
-    bc.postMessage({ type: "stickyBody", id: MINI_ID, body: miniText });
-    miniText = null;
-  }
+  // 關窗前若還有未同步的內容，跳出提醒
+  window.addEventListener("beforeunload", e => {
+    if (MINI === "sticky" && miniLoaded && stickyDirty()) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
 
   bc.onmessage = e => {
     const m = e.data || {};
     if (MINI) {
       if (m.type === "state") onMiniState(m);
+      else if (m.type === "ack") onAck(m.id);
       return;
     }
     if (m.type === "hello") bc.postMessage(snapshot());
@@ -1799,12 +1957,17 @@
     if (MINI === "sticky" && !MINI_ID) miniStatus("缺少便籤編號");
     else miniStatus("連線中…");
 
-    $("msText").addEventListener("input", () => {
-      miniText = $("msText").value;
-      miniStatus("編輯中…");
-      clearTimeout(miniTimer);
-      miniTimer = setTimeout(flushMini, 500);
+    setStickyFont(stickyFont);
+    $("msFontUp").onclick = () => setStickyFont(stickyFont + 2);
+    $("msFontDn").onclick = () => setStickyFont(stickyFont - 2);
+    $("msText").addEventListener("input", refreshStickyStatus);
+    $("msText").addEventListener("keydown", e => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (!$("msText").disabled) syncSticky();
+      }
     });
+    $("msSync").onclick = () => { if (!$("msText").disabled) syncSticky(); };
     $("msColor").onclick = () => bc.postMessage({ type: "stickyColor", id: MINI_ID });
     $("msNew").onclick = () => {
       const id = crypto.randomUUID();
@@ -1812,12 +1975,12 @@
       window.open(BASE + "?mini=sticky&id=" + encodeURIComponent(id), "vault-sticky-" + id, "width=320,height=340");
     };
     $("msDel").onclick = () => {
-      if (!confirm("確定要刪除這張便籤嗎？")) return;
+      if (!confirm("確定要刪除這張便籤嗎？刪除後主工具中也會移除。")) return;
       bc.postMessage({ type: "stickyDelete", id: MINI_ID });
+      miniLoaded = true;
+      syncedBody = $("msText").value;
       setTimeout(() => window.close(), 300);
     };
-    $("msSearch").addEventListener("input", renderMiniSnip);
-    window.addEventListener("pagehide", flushMini);
 
     bc.postMessage({ type: "hello" });
     setInterval(() => bc.postMessage({ type: "hello" }), 3000);
