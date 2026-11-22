@@ -13,6 +13,7 @@
   button { padding: 8px 12px; border: 0; border-radius: 8px; background: #7c8db5; color: #fff; cursor: pointer; margin: 2px; font-size: 14px; }
   button.gray { background: #9ca3af; }
   button.red { background: #e57373; }
+  button.on { background: #4b5b80; }
   input, textarea, select { box-sizing: border-box; padding: 9px; margin: 4px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; background: #fff; color: #333; }
   input[type=text], input:not([type]), input[type=password], input[type=url], textarea { width: 100%; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -20,6 +21,7 @@
   .panel { background: var(--panel); border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
   .center { min-height: 80vh; display: flex; align-items: center; justify-content: center; }
   .box { width: 320px; max-width: 90vw; }
+  .area { padding: 16px; }
 
   /* 外框：左側分類 + 右側內容 */
   #shell { display: flex; min-height: calc(100vh - 52px); }
@@ -50,6 +52,30 @@
   .tbtn { background: rgba(255,255,255,.8); color: #333; border: 1px solid rgba(0,0,0,.08); padding: 6px 8px; font-size: 13px; }
   .tbtn:hover { background: #fff; }
 
+  /* 罐頭語 */
+  .snRow { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; background: var(--panel); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .snLabel { width: 140px; flex-shrink: 0; font-weight: bold; padding-top: 6px; word-break: break-all; }
+  .snText { flex: 1; min-width: 0; cursor: pointer; padding: 6px 8px; border-radius: 8px; white-space: pre-wrap; word-break: break-word; }
+  .snText:hover { background: rgba(124,141,181,.2); }
+  .snBtns { display: flex; flex-direction: column; gap: 4px; }
+
+  /* 便籤 */
+  .stGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 12px; }
+  .stCard { border-radius: 12px; padding: 10px; box-shadow: 0 2px 6px rgba(0,0,0,.08); display: flex; flex-direction: column; gap: 6px; }
+  .stCard textarea { background: rgba(255,255,255,.6); border: 0; resize: vertical; min-height: 110px; color: #333; }
+
+  /* 記事本 */
+  .nbWrap { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+  .nbList { width: 230px; flex-shrink: 0; }
+  .nbItem { padding: 10px; border-radius: 10px; cursor: pointer; background: var(--panel); margin-bottom: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.06); word-break: break-all; }
+  .nbItem.on { outline: 2px solid #7c8db5; }
+  .nbEdit { flex: 1; min-width: 300px; background: var(--panel); border-radius: 14px; padding: 14px; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+  .nbEdit textarea { min-height: 220px; }
+  .nbPasteBox { border: 2px dashed #9ca3af; border-radius: 10px; padding: 10px; text-align: center; color: #666; font-size: 13px; margin: 6px 0; }
+  .nbImgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+  .imgWrap { display: flex; flex-direction: column; gap: 4px; }
+  .imgWrap img { width: 100%; border-radius: 8px; cursor: zoom-in; display: block; background: #eee; min-height: 60px; }
+
   /* 顏色選擇 */
   .swatch { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; padding: 0; margin: 0; cursor: pointer; }
   .swatch.on { border-color: #333; }
@@ -62,6 +88,7 @@
     aside h4 { width: 100%; }
     .cat-item { width: auto; }
     #panels { grid-template-columns: 1fr; }
+    .snLabel { width: 90px; }
   }
 </style>
 </head>
@@ -92,8 +119,16 @@
   </div>
 </section>
 
-<!-- 3. 清單 -->
+<!-- 3. 主畫面 -->
 <div id="vaultView" class="hidden" style="display:none;">
+  <div class="row area" style="padding-bottom:0;">
+    <button id="tabSites">網站清單</button>
+    <button id="tabSnip" class="gray">罐頭語</button>
+    <button id="tabSticky" class="gray">便籤</button>
+    <button id="tabNote" class="gray">記事本</button>
+  </div>
+
+  <!-- 網站清單 -->
   <div id="shell">
     <aside>
       <h4>分類</h4>
@@ -156,6 +191,51 @@
       <div id="panels"></div>
     </main>
   </div>
+
+  <!-- 罐頭語 -->
+  <div id="snipArea" class="area hidden">
+    <div class="panel">
+      <input id="snLabel" placeholder="標籤（例如 稍候）">
+      <textarea id="snText" rows="3" placeholder="內容（之後點一下就會複製）"></textarea>
+      <div class="row">
+        <button id="snSave">新增</button>
+        <button id="snCancel" class="gray">取消</button>
+        <span id="snMsg" class="muted"></span>
+      </div>
+    </div>
+    <input id="snSearch" placeholder="搜尋罐頭語…">
+    <div id="snList" style="margin-top:12px;"></div>
+  </div>
+
+  <!-- 便籤 -->
+  <div id="stickyArea" class="area hidden">
+    <div class="row"><button id="stAdd">＋ 新增便籤</button></div>
+    <div id="stList" class="stGrid"></div>
+  </div>
+
+  <!-- 記事本 -->
+  <div id="noteArea" class="area hidden">
+    <div class="nbWrap">
+      <div class="nbList">
+        <button id="nbAdd" style="width:100%;">＋ 新增記事本</button>
+        <div id="nbItems" style="margin-top:8px;"></div>
+      </div>
+      <div class="nbEdit" id="nbEdit">
+        <p id="nbEmpty" class="muted">請先選擇或新增一則記事本。</p>
+        <div id="nbForm" class="hidden">
+          <input id="nbTitle" placeholder="標題">
+          <textarea id="nbBody" placeholder="內容…"></textarea>
+          <div class="nbPasteBox">在這裡按 Ctrl+V 可以直接貼上截圖</div>
+          <div class="row">
+            <button id="nbSave">儲存</button>
+            <button id="nbDelete" class="red">刪除這則記事本</button>
+            <span id="nbMsg" class="muted"></span>
+          </div>
+          <div id="nbImgs" class="nbImgs"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -164,7 +244,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc }
+  import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs }
     from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   // ===== 設定區 =====
@@ -177,7 +257,6 @@
   const ALLOWED_EMAIL = "shee740113@gmail.com";
   // ====================================================================
 
-  // 內建配色主題：header 標題列、bg 頁面背景、panel 分類面板、cards 卡片可選色
   const THEMES = {
     "粉彩": { header: "#7c8db5", bg: "#fafafa", panel: "#ffffff",
       cards: ["#FFD6E0", "#FFE5B4", "#FFF5BA", "#C1F0D6", "#BDE0FE", "#D7C8F5", "#FFCFB3"] },
@@ -195,6 +274,7 @@
   const ZOOM = { s: 0.9, m: 1, l: 1.2 };
   const NOCAT = "未分類";
   const DEFAULT_TITLE = "我的網站清單";
+  const MAX_IMG_CHARS = 900000;
 
   const app = initializeApp(FIREBASE_CONFIG);
   const auth = getAuth(app);
@@ -204,14 +284,20 @@
   let key = null;
   let salt = null;
   let items = [];
+  let snippets = [];
+  let notes = [];
   let settings = { bg: "#fafafa", font: "m", header: "#7c8db5", theme: "粉彩", title: DEFAULT_TITLE, catColors: {} };
   let editingId = null;
   let dragId = null;
-  let activeCat = null; // null = 全部
+  let activeCat = null;
+  let snEditId = null;
+  let nbSelId = null;
+  let area = "sites";
+  const imgCache = new Map();
 
   const $ = id => document.getElementById(id);
-  const enc = new TextEncoder();
-  const dec = new TextDecoder();
+  const textEnc = new TextEncoder();
+  const textDec = new TextDecoder();
   const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
   const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
@@ -241,7 +327,7 @@
 
   // ===== 加密 =====
   async function deriveKey(pass, saltBytes) {
-    const base = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
+    const base = await crypto.subtle.importKey("raw", textEnc.encode(pass), "PBKDF2", false, ["deriveKey"]);
     return crypto.subtle.deriveKey(
       { name: "PBKDF2", salt: saltBytes, iterations: 310000, hash: "SHA-256" },
       base,
@@ -251,13 +337,27 @@
     );
   }
 
-  async function saveVault() {
+  async function sealWith(k, text) {
     const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify({ items, settings })));
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, k, textEnc.encode(text));
+    return { iv: b64(iv), data: b64(ct) };
+  }
+
+  async function openWith(k, obj) {
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(obj.iv) }, k, unb64(obj.data));
+    return textDec.decode(pt);
+  }
+
+  function vaultPayload() {
+    return { items, snippets, notes, settings };
+  }
+
+  async function saveVault() {
+    const sealed = await sealWith(key, JSON.stringify(vaultPayload()));
     await setDoc(doc(db, "vaults", user.uid), {
       salt: b64(salt),
-      iv: b64(iv),
-      data: b64(ct),
+      iv: sealed.iv,
+      data: sealed.data,
       updated: Date.now()
     });
   }
@@ -271,6 +371,50 @@
     }
   }
 
+  // ===== 圖片 =====
+  function compressImage(blob) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("無法讀取圖片")); };
+      img.src = url;
+    });
+  }
+
+  async function addImage(blob) {
+    const dataUrl = await compressImage(blob);
+    const sealed = await sealWith(key, dataUrl);
+    const size = sealed.data.length + sealed.iv.length;
+    if (size > MAX_IMG_CHARS) throw new Error("圖片太大，請截小一點");
+    const id = crypto.randomUUID();
+    await setDoc(doc(db, "vaults", user.uid, "images", id), { ...sealed, created: Date.now() });
+    imgCache.set(id, dataUrl);
+    return id;
+  }
+
+  async function getImage(id) {
+    if (imgCache.has(id)) return imgCache.get(id);
+    const snap = await getDoc(doc(db, "vaults", user.uid, "images", id));
+    if (!snap.exists()) return null;
+    const url = await openWith(key, snap.data());
+    imgCache.set(id, url);
+    return url;
+  }
+
+  async function removeImage(id) {
+    await deleteDoc(doc(db, "vaults", user.uid, "images", id));
+    imgCache.delete(id);
+  }
+
   // ===== 登入 =====
   $("googleBtn").onclick = async () => {
     try {
@@ -282,7 +426,8 @@
 
   onAuthStateChanged(auth, async u => {
     if (!u) {
-      user = null; key = null; items = [];
+      user = null; key = null; items = []; snippets = []; notes = [];
+      imgCache.clear();
       show("loginView");
       return;
     }
@@ -307,23 +452,24 @@
         const d = snap.data();
         salt = unb64(d.salt);
         key = await deriveKey(pass, salt);
-        const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(d.iv) }, key, unb64(d.data));
-        const p = JSON.parse(dec.decode(pt));
+        const p = JSON.parse(await openWith(key, d));
         if (Array.isArray(p)) {
           items = p;
         } else {
           items = p.items || [];
+          snippets = p.snippets || [];
+          notes = p.notes || [];
           const s = p.settings || {};
           settings = { ...settings, ...s, catColors: { ...(s.catColors || {}) } };
         }
       } else {
         salt = crypto.getRandomValues(new Uint8Array(16));
         key = await deriveKey(pass, salt);
-        items = [];
         await saveVault();
       }
       applyAll();
       show("vaultView");
+      showArea("sites");
       render();
     } catch (e) {
       $("unlockMsg").textContent = "解鎖失敗：加密密碼不正確，或資料損壞";
@@ -337,6 +483,28 @@
     await signOut(auth);
     toast("已登出");
   };
+
+  // ===== 分頁切換 =====
+  function showArea(name) {
+    area = name;
+    const map = { sites: "shell", snip: "snipArea", sticky: "stickyArea", note: "noteArea" };
+    Object.values(map).forEach(id => $(id).classList.add("hidden"));
+    $(map[name]).classList.remove("hidden");
+    const tabs = { sites: "tabSites", snip: "tabSnip", sticky: "tabSticky", note: "tabNote" };
+    Object.entries(tabs).forEach(([k, id]) => {
+      const b = $(id);
+      b.classList.toggle("on", k === name);
+      b.classList.toggle("gray", k !== name);
+    });
+    if (name === "snip") renderSnippets();
+    if (name === "sticky") renderStickies();
+    if (name === "note") renderNotebook();
+  }
+
+  $("tabSites").onclick = () => showArea("sites");
+  $("tabSnip").onclick = () => showArea("snip");
+  $("tabSticky").onclick = () => showArea("sticky");
+  $("tabNote").onclick = () => showArea("note");
 
   // ===== 外觀設定 =====
   function applyAll() {
@@ -432,12 +600,16 @@
   // ===== 搜尋 =====
   $("search").addEventListener("input", render);
 
-  // ===== 備份與還原 =====
+  // ===== 備份與還原（含圖片） =====
   $("backupBtn").onclick = async () => {
     try {
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(JSON.stringify({ items, settings })));
-      const payload = { format: "vault-backup-v1", salt: b64(salt), iv: b64(iv), data: b64(ct) };
+      const images = {};
+      const snap = await getDocs(collection(db, "vaults", user.uid, "images"));
+      for (const d of snap.docs) {
+        images[d.id] = await openWith(key, d.data());
+      }
+      const sealed = await sealWith(key, JSON.stringify({ ...vaultPayload(), images }));
+      const payload = { format: "vault-backup-v2", salt: b64(salt), iv: sealed.iv, data: sealed.data };
       const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -459,11 +631,17 @@
     try {
       const d = JSON.parse(await file.text());
       const k = await deriveKey(pass, unb64(d.salt));
-      const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(d.iv) }, k, unb64(d.data));
-      const p = JSON.parse(dec.decode(pt));
-      if (!confirm("還原會覆蓋目前的清單，確定要還原嗎？")) return;
+      const p = JSON.parse(await openWith(k, d));
+      if (!confirm("還原會覆蓋目前的資料，確定要還原嗎？")) return;
       items = p.items || [];
+      snippets = p.snippets || [];
+      notes = p.notes || [];
       settings = { ...settings, ...(p.settings || {}) };
+      for (const [id, url] of Object.entries(p.images || {})) {
+        const sealed = await sealWith(key, url);
+        await setDoc(doc(db, "vaults", user.uid, "images", id), { ...sealed, created: Date.now() });
+        imgCache.set(id, url);
+      }
       applyAll();
       await persist("已還原");
       render();
@@ -478,7 +656,7 @@
     toast("已複製");
   }
 
-  // ===== 排序 =====
+  // ===== 網站排序 =====
   async function moveBefore(fromId, toId) {
     const from = items.find(x => x.id === fromId);
     const to = items.find(x => x.id === toId);
@@ -534,7 +712,7 @@
     counts.forEach((n, c) => addBtn(c, n, c, catColor(c)));
   }
 
-  // ===== 主畫面 =====
+  // ===== 網站主畫面 =====
   function render() {
     renderSidebar();
     const panels = $("panels");
@@ -753,7 +931,7 @@
     }
   });
 
-  // ===== 編輯 =====
+  // ===== 網站編輯 =====
   function openEditor(it = null) {
     editingId = it ? it.id : null;
     $("eName").value = it ? it.name : "";
@@ -811,6 +989,252 @@
     items = items.filter(x => x.id !== id);
     await persist();
     render();
+  }
+
+  // ===== 罐頭語 =====
+  function renderSnippets() {
+    const list = $("snList");
+    list.textContent = "";
+    const q = $("snSearch").value.trim().toLowerCase();
+    const shown = snippets.filter(s => !q || s.label.toLowerCase().includes(q) || s.text.toLowerCase().includes(q));
+    if (!shown.length) {
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = snippets.length ? "找不到符合的罐頭語。" : "還沒有罐頭語，請在上方新增。";
+      list.appendChild(p);
+      return;
+    }
+    shown.forEach(s => {
+      const row = document.createElement("div");
+      row.className = "snRow";
+
+      const label = document.createElement("div");
+      label.className = "snLabel";
+      label.textContent = s.label;
+
+      const text = document.createElement("div");
+      text.className = "snText";
+      text.textContent = s.text;
+      text.title = "點一下複製內容";
+      text.onclick = () => copy(s.text);
+
+      const btns = document.createElement("div");
+      btns.className = "snBtns";
+      btns.appendChild(tbtn("編輯", () => editSnippet(s)));
+      btns.appendChild(tbtn("刪除", () => removeSnippet(s.id), "red"));
+
+      row.append(label, text, btns);
+      list.appendChild(row);
+    });
+  }
+
+  function resetSnForm() {
+    snEditId = null;
+    $("snLabel").value = "";
+    $("snText").value = "";
+    $("snSave").textContent = "新增";
+    $("snMsg").textContent = "";
+  }
+
+  function editSnippet(s) {
+    snEditId = s.id;
+    $("snLabel").value = s.label;
+    $("snText").value = s.text;
+    $("snSave").textContent = "儲存";
+    $("snMsg").textContent = "編輯中";
+    $("snLabel").scrollIntoView({ behavior: "smooth" });
+  }
+
+  async function removeSnippet(id) {
+    if (!confirm("確定要刪除這則罐頭語嗎？")) return;
+    snippets = snippets.filter(x => x.id !== id);
+    await persist();
+    renderSnippets();
+  }
+
+  $("snSave").onclick = async () => {
+    const label = $("snLabel").value.trim();
+    const text = $("snText").value.trim();
+    if (!label) { $("snMsg").textContent = "請輸入標籤"; return; }
+    if (!text) { $("snMsg").textContent = "請輸入內容"; return; }
+    if (snEditId) {
+      snippets = snippets.map(x => (x.id === snEditId ? { ...x, label, text } : x));
+    } else {
+      snippets.push({ id: crypto.randomUUID(), label, text });
+    }
+    resetSnForm();
+    await persist("罐頭語已儲存");
+    renderSnippets();
+  };
+
+  $("snCancel").onclick = resetSnForm;
+  $("snSearch").addEventListener("input", renderSnippets);
+
+  // ===== 便籤 =====
+  function renderStickies() {
+    const list = $("stList");
+    list.textContent = "";
+    const stickies = notes.filter(n => n.type === "sticky");
+    if (!stickies.length) {
+      const p = document.createElement("p");
+      p.className = "muted";
+      p.textContent = "還沒有便籤，按上方「新增便籤」。";
+      list.appendChild(p);
+    }
+    stickies.forEach(n => {
+      const card = document.createElement("div");
+      card.className = "stCard";
+      card.style.background = n.color || palette()[0];
+
+      const ta = document.createElement("textarea");
+      ta.value = n.body || "";
+      ta.placeholder = "寫點什麼…";
+      ta.addEventListener("change", async () => {
+        n.body = ta.value;
+        n.updated = Date.now();
+        await persist("便籤已儲存");
+      });
+
+      const btns = document.createElement("div");
+      btns.className = "row";
+      btns.appendChild(tbtn("換色", async () => {
+        const cards = palette();
+        const i = cards.indexOf(n.color);
+        n.color = cards[(i + 1) % cards.length];
+        await persist();
+        renderStickies();
+      }));
+      btns.appendChild(tbtn("刪除", async () => {
+        if (!confirm("確定要刪除這張便籤嗎？")) return;
+        notes = notes.filter(x => x.id !== n.id);
+        await persist();
+        renderStickies();
+      }, "red"));
+
+      card.append(ta, btns);
+      list.appendChild(card);
+    });
+  }
+
+  $("stAdd").onclick = async () => {
+    const cards = palette();
+    const count = notes.filter(n => n.type === "sticky").length;
+    notes.push({ id: crypto.randomUUID(), type: "sticky", title: "", body: "", images: [], color: cards[count % cards.length], updated: Date.now() });
+    await persist();
+    renderStickies();
+  };
+
+  // ===== 記事本 =====
+  function currentNote() {
+    return notes.find(n => n.id === nbSelId && n.type === "notebook") || null;
+  }
+
+  function renderNotebook() {
+    const box = $("nbItems");
+    box.textContent = "";
+    const books = notes.filter(n => n.type === "notebook").sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    books.forEach(n => {
+      const it = document.createElement("div");
+      it.className = "nbItem" + (n.id === nbSelId ? " on" : "");
+      it.textContent = n.title || "未命名";
+      it.onclick = () => { nbSelId = n.id; renderNotebook(); };
+      box.appendChild(it);
+    });
+
+    const note = currentNote();
+    $("nbEmpty").classList.toggle("hidden", !!note);
+    $("nbForm").classList.toggle("hidden", !note);
+    if (note) {
+      $("nbTitle").value = note.title || "";
+      $("nbBody").value = note.body || "";
+      renderNbImages(note);
+    }
+  }
+
+  $("nbAdd").onclick = async () => {
+    const n = { id: crypto.randomUUID(), type: "notebook", title: "未命名", body: "", images: [], updated: Date.now() };
+    notes.push(n);
+    nbSelId = n.id;
+    await persist();
+    renderNotebook();
+  };
+
+  $("nbSave").onclick = async () => {
+    const note = currentNote();
+    if (!note) return;
+    note.title = $("nbTitle").value.trim() || "未命名";
+    note.body = $("nbBody").value;
+    note.updated = Date.now();
+    await persist("記事本已儲存");
+    renderNotebook();
+  };
+
+  $("nbDelete").onclick = async () => {
+    const note = currentNote();
+    if (!note) return;
+    if (!confirm("確定要刪除這則記事本（包含所有截圖）嗎？")) return;
+    for (const id of note.images || []) {
+      try { await removeImage(id); } catch (e) {}
+    }
+    notes = notes.filter(n => n.id !== note.id);
+    nbSelId = null;
+    await persist("已刪除");
+    renderNotebook();
+  };
+
+  async function pasteImages(e) {
+    const files = [...(e.clipboardData ? e.clipboardData.items : [])]
+      .filter(i => i.type.startsWith("image/"))
+      .map(i => i.getAsFile());
+    if (!files.length) return;
+    e.preventDefault();
+    const note = currentNote();
+    if (!note) { toast("請先選擇或新增一則記事本"); return; }
+    $("nbMsg").textContent = "圖片處理中…";
+    for (const f of files) {
+      try {
+        const id = await addImage(f);
+        note.images = note.images || [];
+        note.images.push(id);
+      } catch (err) {
+        toast("圖片加入失敗：" + err.message);
+      }
+    }
+    note.updated = Date.now();
+    await persist("圖片已加入");
+    $("nbMsg").textContent = "";
+    renderNbImages(note);
+  }
+
+  $("nbBody").addEventListener("paste", pasteImages);
+
+  function renderNbImages(note) {
+    const box = $("nbImgs");
+    box.textContent = "";
+    (note.images || []).forEach(id => {
+      const wrap = document.createElement("div");
+      wrap.className = "imgWrap";
+
+      const img = document.createElement("img");
+      img.alt = "截圖";
+      img.title = "點一下放大";
+      img.onclick = async () => {
+        const u = await getImage(id);
+        if (u) window.open(u, "_blank");
+      };
+      getImage(id).then(u => { if (u) img.src = u; }).catch(() => {});
+
+      const del = smallBtn("刪除這張圖", async () => {
+        if (!confirm("確定要刪除這張圖片嗎？")) return;
+        note.images = note.images.filter(x => x !== id);
+        try { await removeImage(id); } catch (e) {}
+        await persist("已刪除圖片");
+        renderNbImages(note);
+      }, "red");
+
+      wrap.append(img, del);
+      box.appendChild(wrap);
+    });
   }
 </script>
 </body>
