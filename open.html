@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>一次開啟網站</title>
+<style>
+  body { font-family: system-ui, "Microsoft JhengHei", sans-serif; margin: 0; padding: 20px; background: #fafafa; color: #333; }
+  h2 { margin-top: 0; }
+  button { padding: 10px 16px; border: 0; border-radius: 8px; background: #7c8db5; color: #fff; font-size: 16px; cursor: pointer; margin: 4px 0; }
+  button.gray { background: #9ca3af; }
+  textarea { width: 100%; height: 200px; box-sizing: border-box; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-top: 8px; }
+  p { margin: 8px 0; line-height: 1.6; }
+  #msg { font-weight: bold; color: #37474f; }
+</style>
+</head>
+<body>
+<h2>一次開啟網站</h2>
+<p>步驟：先到「我的網站清單」按「複製全部網址」，再回到這個頁面按下方按鈕。</p>
+<button id="readBtn">讀取剪貼簿並開啟</button>
+<p>如果瀏覽器沒有讓讀取剪貼簿，請把網址貼到下面的文字框，再按「開啟文字框中的網址」。</p>
+<textarea id="box" placeholder="貼上網址（每行一個）"></textarea>
+<div><button id="openBtn" class="gray">開啟文字框中的網址</button></div>
+<p id="msg"></p>
+<script>
+  const $ = id => document.getElementById(id);
+
+  function urlsFrom(text) {
+    return [...new Set(text.split(/\r?\n/).map(s => s.trim()).filter(s => /^https?:\/\//i.test(s)))];
+  }
+
+  function openAll(text) {
+    const list = urlsFrom(text);
+    if (!list.length) {
+      $("msg").textContent = "沒有找到網址，請先在「我的網站清單」按「複製全部網址」。";
+      return;
+    }
+    list.forEach(u => window.open(u, "_blank"));
+    $("msg").textContent = `已嘗試開啟 ${list.length} 個網址。如果沒有全部開啟，請在網址列右側允許這個網站的彈出式視窗，再按一次。`;
+  }
+
+  $("readBtn").onclick = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      $("box").value = text;
+      openAll(text);
+    } catch (e) {
+      $("msg").textContent = "無法讀取剪貼簿，請把網址貼到下面的文字框後，按「開啟文字框中的網址」。";
+    }
+  };
+
+  $("openBtn").onclick = () => openAll($("box").value);
+</script>
+</body>
+</html>

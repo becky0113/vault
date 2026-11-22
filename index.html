@@ -199,6 +199,7 @@
     <main>
       <div class="row" style="justify-content: space-between;">
         <button id="openAllBtn">一鍵開啟全部網站</button>
+        <button id="copyAllBtn" class="gray">複製全部網址</button>
         <button id="addBtn" class="gray">新增網站</button>
       </div>
 
@@ -1095,6 +1096,16 @@
       dl.appendChild(o);
     });
   }
+
+  $("copyAllBtn").onclick = async () => {
+    if (!items.length) { toast("沒有網站可以複製"); return; }
+    try {
+      await navigator.clipboard.writeText(items.map(it => it.url).join("\n"));
+      toast(`已複製 ${items.length} 個網址，到「一次開啟網站」頁面按讀取即可`, 3000);
+    } catch (e) {
+      toast("複製失敗：" + e.message, 5000);
+    }
+  };
 
   $("openAllBtn").onclick = () => {
     items.forEach(it => window.open(it.url, "_blank", "noopener"));
