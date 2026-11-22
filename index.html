@@ -225,7 +225,7 @@
         <div id="nbForm" class="hidden">
           <input id="nbTitle" placeholder="標題">
           <textarea id="nbBody" placeholder="內容…"></textarea>
-          <div class="nbPasteBox">在這裡按 Ctrl+V 可以直接貼上截圖</div>
+          <div class="nbPasteBox" id="nbPasteBox">點這裡，或在記事本任何地方按 Ctrl+V 貼上截圖</div>
           <div class="row">
             <button id="nbSave">儲存</button>
             <button id="nbDelete" class="red">刪除這則記事本</button>
@@ -1190,6 +1190,7 @@
     e.preventDefault();
     const note = currentNote();
     if (!note) { toast("請先選擇或新增一則記事本"); return; }
+    toast("圖片加入中，請稍候…");
     $("nbMsg").textContent = "圖片處理中…";
     for (const f of files) {
       try {
@@ -1206,7 +1207,13 @@
     renderNbImages(note);
   }
 
-  $("nbBody").addEventListener("paste", pasteImages);
+  // 只要在「記事本」分頁，按 Ctrl+V 都會嘗試貼上圖片（不必先點在內容框裡）
+  document.addEventListener("paste", e => {
+    if (area !== "note") return;
+    pasteImages(e);
+  });
+
+  $("nbPasteBox").addEventListener("click", () => $("nbBody").focus());
 
   function renderNbImages(note) {
     const box = $("nbImgs");
