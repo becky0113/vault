@@ -229,12 +229,19 @@
       </div>
       <div class="nbEdit" id="nbEdit">
         <p id="nbEmpty" class="muted">請先選擇或新增一則記事本。</p>
+        <div id="nbLockedBox" class="hidden">
+          <p>🔒 這則記事本已加密。</p>
+          <button id="nbOpenBtn">輸入密碼解鎖</button>
+        </div>
         <div id="nbForm" class="hidden">
           <input id="nbTitle" placeholder="標題">
           <textarea id="nbBody" placeholder="內容…"></textarea>
           <div class="nbPasteBox" id="nbPasteBox">點這裡，或在記事本任何地方按 Ctrl+V 貼上截圖</div>
           <div class="row">
             <button id="nbSave">儲存</button>
+            <button id="nbLockBtn" class="gray">加密此記事本</button>
+            <button id="nbUnlockBtn" class="gray hidden">解除加密</button>
+            <button id="nbRelockBtn" class="gray hidden">再次鎖定</button>
             <button id="nbDelete" class="red">刪除這則記事本</button>
             <span id="nbMsg" class="muted"></span>
           </div>
@@ -314,6 +321,7 @@
   let nbSelId = null;
   let area = "sites";
   const imgCache = new Map();
+  const openNotes = new Map(); // 已解鎖的加密記事本：id -> { key, title, body, images }
 
   const $ = id => document.getElementById(id);
   const textEnc = new TextEncoder();
@@ -377,6 +385,20 @@
     return textDec.decode(pt);
   }
 
+  // 驗證加密密碼是否與登入工具的密碼相同
+  async function verifyPass(pass) {
+    const snap = await getDoc(doc(db, "vaults", user.uid));
+    if (!snap.exists()) return false;
+    const d = snap.data();
+    try {
+      const k = await deriveKey(pass, unb64(d.salt));
+      await openWith(k, d);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function vaultPayload() {
     return { items, snippets, notes, settings };
   }
@@ -419,22 +441,30 @@
     });
   }
 
-  async function addImage(blob) {
+  // noteKey 有值 = 加密记事本的截图，用该记事本的钥匙加密
+  async function addImage(blob, noteKey = null) {
     const dataUrl = await compressImage(blob);
-    const sealed = await sealWith(key, dataUrl);
+    const sealed = await sealWith(noteKey || key, dataUrl);
     const size = sealed.data.length + sealed.iv.length;
     if (size > MAX_IMG_CHARS) throw new Error("圖片太大，請截小一點");
     const id = crypto.randomUUID();
-    await setDoc(doc(db, "vaults", user.uid, "images", id), { ...sealed, created: Date.now() });
+    await setDoc(doc(db, "vaults", user.uid, "images", id), {
+      ...sealed,
+      created: Date.now(),
+      ...(noteKey ? { nk: true } : {})
+    });
     imgCache.set(id, dataUrl);
     return id;
   }
 
-  async function getImage(id) {
+  async function getImage(id, noteKey = null) {
     if (imgCache.has(id)) return imgCache.get(id);
     const snap = await getDoc(doc(db, "vaults", user.uid, "images", id));
     if (!snap.exists()) return null;
-    const url = await openWith(key, snap.data());
+    const d = snap.data();
+    const k = d.nk ? noteKey : key;
+    if (!k) return null;
+    const url = await openWith(k, d);
     imgCache.set(id, url);
     return url;
   }
@@ -443,56 +473,6 @@
     await deleteDoc(doc(db, "vaults", user.uid, "images", id));
     imgCache.delete(id);
   }
-
-  // ===== 放大檢視（頁面內，不另開分頁） =====
-  const lb = { zoom: 1, rot: 0, flip: false };
-
-  function applyLb() {
-    $("lbImg").style.transform = `scale(${lb.zoom}) rotate(${lb.rot}deg) scaleX(${lb.flip ? -1 : 1})`;
-  }
-
-  function resetLb() {
-    lb.zoom = 1; lb.rot = 0; lb.flip = false;
-    applyLb();
-  }
-
-  function openLightbox(src) {
-    $("lbImg").src = src;
-    resetLb();
-    $("lightbox").classList.remove("hidden");
-  }
-
-  function closeLightbox() {
-    $("lightbox").classList.add("hidden");
-    $("lbImg").src = "";
-  }
-
-  function zoomBy(d) {
-    lb.zoom = Math.min(5, Math.max(0.25, +(lb.zoom + d).toFixed(2)));
-    applyLb();
-  }
-
-  $("lbZoomIn").onclick = () => zoomBy(0.25);
-  $("lbZoomOut").onclick = () => zoomBy(-0.25);
-  $("lbReset").onclick = resetLb;
-  $("lbRotL").onclick = () => { lb.rot -= 90; applyLb(); };
-  $("lbRotR").onclick = () => { lb.rot += 90; applyLb(); };
-  $("lbFlip").onclick = () => { lb.flip = !lb.flip; applyLb(); };
-  $("lbClose").onclick = closeLightbox;
-  $("lbStage").addEventListener("click", e => { if (e.target.id === "lbStage") closeLightbox(); });
-  $("lbStage").addEventListener("wheel", e => {
-    e.preventDefault();
-    zoomBy(e.deltaY < 0 ? 0.1 : -0.1);
-  }, { passive: false });
-
-  document.addEventListener("keydown", e => {
-    if ($("lightbox").classList.contains("hidden")) return;
-    if (e.key === "Escape") closeLightbox();
-    else if (e.key === "+" || e.key === "=") zoomBy(0.25);
-    else if (e.key === "-") zoomBy(-0.25);
-    else if (e.key === "ArrowLeft") { lb.rot -= 90; applyLb(); }
-    else if (e.key === "ArrowRight") { lb.rot += 90; applyLb(); }
-  });
 
   // ===== 登入 =====
   $("googleBtn").onclick = async () => {
@@ -506,7 +486,7 @@
   onAuthStateChanged(auth, async u => {
     if (!u) {
       user = null; key = null; items = []; snippets = []; notes = [];
-      imgCache.clear();
+      imgCache.clear(); openNotes.clear();
       show("loginView");
       return;
     }
@@ -679,13 +659,18 @@
   // ===== 搜尋 =====
   $("search").addEventListener("input", render);
 
-  // ===== 備份與還原（含圖片） =====
+  // ===== 備份與還原（含截圖） =====
   $("backupBtn").onclick = async () => {
     try {
       const images = {};
       const snap = await getDocs(collection(db, "vaults", user.uid, "images"));
       for (const d of snap.docs) {
-        images[d.id] = await openWith(key, d.data());
+        const data = d.data();
+        if (data.nk) {
+          images[d.id] = { nk: true, iv: data.iv, data: data.data };
+        } else {
+          images[d.id] = { nk: false, url: await openWith(key, data) };
+        }
       }
       const sealed = await sealWith(key, JSON.stringify({ ...vaultPayload(), images }));
       const payload = { format: "vault-backup-v2", salt: b64(salt), iv: sealed.iv, data: sealed.data };
@@ -697,7 +682,7 @@
       URL.revokeObjectURL(a.href);
       toast("備份已下載（請妥善保管）");
     } catch (e) {
-      toast("備份失敗：" + e.message);
+      toast("備份失敗：" + e.message, 5000);
     }
   };
 
@@ -716,16 +701,25 @@
       snippets = p.snippets || [];
       notes = p.notes || [];
       settings = { ...settings, ...(p.settings || {}) };
-      for (const [id, url] of Object.entries(p.images || {})) {
-        const sealed = await sealWith(key, url);
-        await setDoc(doc(db, "vaults", user.uid, "images", id), { ...sealed, created: Date.now() });
-        imgCache.set(id, url);
+      for (const [id, img] of Object.entries(p.images || {})) {
+        if (typeof img === "string") {
+          // 旧版备份：直接是图片网址
+          const sealed = await sealWith(key, img);
+          await setDoc(doc(db, "vaults", user.uid, "images", id), { ...sealed, created: Date.now() });
+          imgCache.set(id, img);
+        } else if (img.nk) {
+          await setDoc(doc(db, "vaults", user.uid, "images", id), { iv: img.iv, data: img.data, nk: true, created: Date.now() });
+        } else {
+          const sealed = await sealWith(key, img.url);
+          await setDoc(doc(db, "vaults", user.uid, "images", id), { ...sealed, created: Date.now() });
+          imgCache.set(id, img.url);
+        }
       }
       applyAll();
       await persist("已還原");
       render();
     } catch (err) {
-      toast("還原失敗：密碼不正確或檔案已損壞");
+      toast("還原失敗：密碼不正確或檔案已損壞", 5000);
     }
   });
 
@@ -1070,6 +1064,56 @@
     render();
   }
 
+  // ===== 放大檢視（頁面內，不另開分頁） =====
+  const lb = { zoom: 1, rot: 0, flip: false };
+
+  function applyLb() {
+    $("lbImg").style.transform = `scale(${lb.zoom}) rotate(${lb.rot}deg) scaleX(${lb.flip ? -1 : 1})`;
+  }
+
+  function resetLb() {
+    lb.zoom = 1; lb.rot = 0; lb.flip = false;
+    applyLb();
+  }
+
+  function openLightbox(src) {
+    $("lbImg").src = src;
+    resetLb();
+    $("lightbox").classList.remove("hidden");
+  }
+
+  function closeLightbox() {
+    $("lightbox").classList.add("hidden");
+    $("lbImg").src = "";
+  }
+
+  function zoomBy(d) {
+    lb.zoom = Math.min(5, Math.max(0.25, +(lb.zoom + d).toFixed(2)));
+    applyLb();
+  }
+
+  $("lbZoomIn").onclick = () => zoomBy(0.25);
+  $("lbZoomOut").onclick = () => zoomBy(-0.25);
+  $("lbReset").onclick = resetLb;
+  $("lbRotL").onclick = () => { lb.rot -= 90; applyLb(); };
+  $("lbRotR").onclick = () => { lb.rot += 90; applyLb(); };
+  $("lbFlip").onclick = () => { lb.flip = !lb.flip; applyLb(); };
+  $("lbClose").onclick = closeLightbox;
+  $("lbStage").addEventListener("click", e => { if (e.target.id === "lbStage") closeLightbox(); });
+  $("lbStage").addEventListener("wheel", e => {
+    e.preventDefault();
+    zoomBy(e.deltaY < 0 ? 0.1 : -0.1);
+  }, { passive: false });
+
+  document.addEventListener("keydown", e => {
+    if ($("lightbox").classList.contains("hidden")) return;
+    if (e.key === "Escape") closeLightbox();
+    else if (e.key === "+" || e.key === "=") zoomBy(0.25);
+    else if (e.key === "-") zoomBy(-0.25);
+    else if (e.key === "ArrowLeft") { lb.rot -= 90; applyLb(); }
+    else if (e.key === "ArrowRight") { lb.rot += 90; applyLb(); }
+  });
+
   // ===== 罐頭語 =====
   function renderSnippets() {
     const list = $("snList");
@@ -1208,6 +1252,39 @@
     return notes.find(n => n.id === nbSelId && n.type === "notebook") || null;
   }
 
+  // 目前可用的內容：加密的記事本需要已解鎖（openNotes 有資料）
+  function nbView(note) {
+    if (note.locked) {
+      const o = openNotes.get(note.id);
+      return o ? { title: o.title, body: o.body, images: o.images, key: o.key } : null;
+    }
+    return { title: note.title || "", body: note.body || "", images: note.images || [], key: null };
+  }
+
+  function nbImages(note) {
+    if (note.locked) return openNotes.get(note.id).images;
+    note.images = note.images || [];
+    return note.images;
+  }
+
+  // 儲存記事本：加密的記事本會重新加密內容
+  async function commitNote(note) {
+    note.updated = Date.now();
+    if (note.locked) {
+      const o = openNotes.get(note.id);
+      if (!o) return;
+      note.sealed = await sealWith(o.key, JSON.stringify({ title: o.title, body: o.body, images: o.images }));
+    }
+    await persist();
+  }
+
+  // 鎖回加密記事本：清除記憶體中的明文
+  function relockNote(id) {
+    const o = openNotes.get(id);
+    if (o) o.images.forEach(i => imgCache.delete(i));
+    openNotes.delete(id);
+  }
+
   function renderNotebook() {
     const box = $("nbItems");
     box.textContent = "";
@@ -1215,22 +1292,37 @@
     books.forEach(n => {
       const it = document.createElement("div");
       it.className = "nbItem" + (n.id === nbSelId ? " on" : "");
-      it.textContent = n.title || "未命名";
-      it.onclick = () => { nbSelId = n.id; renderNotebook(); };
+      if (n.locked) {
+        const o = openNotes.get(n.id);
+        it.textContent = "🔒 " + (o ? (o.title || "未命名") : "已加密記事本");
+      } else {
+        it.textContent = n.title || "未命名";
+      }
+      it.onclick = () => {
+        if (nbSelId && nbSelId !== n.id) relockNote(nbSelId);
+        nbSelId = n.id;
+        renderNotebook();
+      };
       box.appendChild(it);
     });
 
     const note = currentNote();
+    const view = note ? nbView(note) : null;
     $("nbEmpty").classList.toggle("hidden", !!note);
-    $("nbForm").classList.toggle("hidden", !note);
-    if (note) {
-      $("nbTitle").value = note.title || "";
-      $("nbBody").value = note.body || "";
-      renderNbImages(note);
-    }
+    $("nbLockedBox").classList.toggle("hidden", !(note && note.locked && !view));
+    $("nbForm").classList.toggle("hidden", !(note && view));
+    if (!note || !view) return;
+
+    $("nbTitle").value = view.title || "";
+    $("nbBody").value = view.body || "";
+    $("nbLockBtn").classList.toggle("hidden", !!note.locked);
+    $("nbUnlockBtn").classList.toggle("hidden", !note.locked);
+    $("nbRelockBtn").classList.toggle("hidden", !note.locked);
+    renderNbImages(note);
   }
 
   $("nbAdd").onclick = async () => {
+    if (nbSelId) relockNote(nbSelId);
     const n = { id: crypto.randomUUID(), type: "notebook", title: "未命名", body: "", images: [], updated: Date.now() };
     notes.push(n);
     nbSelId = n.id;
@@ -1240,28 +1332,128 @@
 
   $("nbSave").onclick = async () => {
     const note = currentNote();
-    if (!note) return;
-    note.title = $("nbTitle").value.trim() || "未命名";
-    note.body = $("nbBody").value;
-    note.updated = Date.now();
-    await persist("記事本已儲存");
+    if (!note || !nbView(note)) return;
+    const title = $("nbTitle").value.trim() || "未命名";
+    const body = $("nbBody").value;
+    if (note.locked) {
+      const o = openNotes.get(note.id);
+      o.title = title;
+      o.body = body;
+    } else {
+      note.title = title;
+      note.body = body;
+    }
+    await commitNote(note);
+    toast("記事本已儲存");
+    renderNotebook();
+  };
+
+  // 加密此記事本：驗證密碼 → 截圖與內容改用專屬钥匙加密
+  $("nbLockBtn").onclick = async () => {
+    const note = currentNote();
+    if (!note || note.locked) return;
+    const pass = prompt("請輸入加密密碼（與登入工具的密碼相同），用來加密這則記事本：");
+    if (!pass) return;
+    if (!(await verifyPass(pass))) { toast("密碼不正確"); return; }
+    try {
+      const title = $("nbTitle").value.trim() || note.title || "未命名";
+      const body = $("nbBody").value || note.body || "";
+      const images = [...(note.images || [])];
+      const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+      const nk = await deriveKey(pass, saltBytes);
+      for (const id of images) {
+        const url = await getImage(id, null);
+        if (!url) continue;
+        const sealed = await sealWith(nk, url);
+        await setDoc(doc(db, "vaults", user.uid, "images", id), { ...sealed, created: Date.now(), nk: true });
+        imgCache.delete(id);
+      }
+      note.salt = b64(saltBytes);
+      note.sealed = await sealWith(nk, JSON.stringify({ title, body, images }));
+      note.locked = true;
+      delete note.title;
+      delete note.body;
+      delete note.images;
+      openNotes.set(note.id, { key: nk, title, body, images });
+      note.updated = Date.now();
+      await persist("已加密此記事本");
+      renderNotebook();
+    } catch (e) {
+      toast("加密失敗：" + e.message, 5000);
+    }
+  };
+
+  // 解鎖加密的記事本
+  async function openLockedNote(note) {
+    if (!note || !note.locked) return;
+    const pass = prompt("請輸入這則記事本的加密密碼（與登入工具的密碼相同）：");
+    if (!pass) return;
+    try {
+      const nk = await deriveKey(pass, unb64(note.salt));
+      const p = JSON.parse(await openWith(nk, note.sealed));
+      openNotes.set(note.id, { key: nk, title: p.title || "", body: p.body || "", images: p.images || [] });
+      renderNotebook();
+    } catch (e) {
+      toast("密碼不正確");
+    }
+  }
+
+  $("nbOpenBtn").onclick = () => openLockedNote(currentNote());
+
+  // 解除加密：改回一般儲存方式
+  $("nbUnlockBtn").onclick = async () => {
+    const note = currentNote();
+    const o = note && openNotes.get(note.id);
+    if (!o) return;
+    if (!confirm("解除加密後，這則記事本會改為一般方式儲存。確定要解除嗎？")) return;
+    try {
+      for (const id of o.images) {
+        const url = await getImage(id, o.key);
+        if (!url) continue;
+        const sealed = await sealWith(key, url);
+        await setDoc(doc(db, "vaults", user.uid, "images", id), { ...sealed, created: Date.now() });
+        imgCache.set(id, url);
+      }
+      note.title = o.title;
+      note.body = o.body;
+      note.images = [...o.images];
+      delete note.salt;
+      delete note.sealed;
+      note.locked = false;
+      openNotes.delete(note.id);
+      await commitNote(note);
+      toast("已解除加密");
+      renderNotebook();
+    } catch (e) {
+      toast("解除加密失敗：" + e.message, 5000);
+    }
+  };
+
+  $("nbRelockBtn").onclick = () => {
+    const note = currentNote();
+    if (note) relockNote(note.id);
     renderNotebook();
   };
 
   $("nbDelete").onclick = async () => {
     const note = currentNote();
     if (!note) return;
+    if (note.locked && !openNotes.has(note.id)) { toast("請先解鎖才能刪除"); return; }
     if (!confirm("確定要刪除這則記事本（包含所有截圖）嗎？")) return;
-    for (const id of note.images || []) {
+    const ids = note.locked ? [...openNotes.get(note.id).images] : [...(note.images || [])];
+    for (const id of ids) {
       try { await removeImage(id); } catch (e) {}
     }
+    relockNote(note.id);
     notes = notes.filter(n => n.id !== note.id);
     nbSelId = null;
     await persist("已刪除");
     renderNotebook();
   };
 
+  // 在記事本分頁按 Ctrl+V 貼上截圖
   async function pasteImages(e) {
+    if (area !== "note") return;
     const files = [...(e.clipboardData ? e.clipboardData.items : [])]
       .filter(i => i.type.startsWith("image/"))
       .map(i => i.getAsFile());
@@ -1269,30 +1461,26 @@
     e.preventDefault();
     const note = currentNote();
     if (!note) { toast("請先選擇或新增一則記事本"); return; }
+    const view = nbView(note);
+    if (!view) { toast("請先解鎖這則記事本"); return; }
     toast("圖片加入中，請稍候…");
     $("nbMsg").textContent = "圖片處理中…";
     let failed = 0;
     for (const f of files) {
       try {
-        const id = await addImage(f);
-        note.images = note.images || [];
-        note.images.push(id);
+        const id = await addImage(f, view.key);
+        nbImages(note).push(id);
       } catch (err) {
         failed++;
         toast("圖片加入失敗：" + err.message, 6000);
       }
     }
-    note.updated = Date.now();
-    if (failed === 0) {
-      await persist("圖片已加入");
-    } else {
-      await persist();
-    }
+    await commitNote(note);
+    if (failed === 0) toast("圖片已加入");
     $("nbMsg").textContent = "";
     renderNbImages(note);
   }
 
-  // 只要在「記事本」分頁，按 Ctrl+V 都會嘗試貼上圖片（不必先點在內容框裡）
   document.addEventListener("paste", e => {
     if (area !== "note") return;
     pasteImages(e);
@@ -1303,7 +1491,9 @@
   function renderNbImages(note) {
     const box = $("nbImgs");
     box.textContent = "";
-    const ids = note.images || [];
+    const view = nbView(note);
+    if (!view) return;
+    const ids = view.images || [];
     $("nbMsg").textContent = ids.length ? "共 " + ids.length + " 張截圖" : "";
     ids.forEach((id, i) => {
       const wrap = document.createElement("div");
@@ -1322,7 +1512,7 @@
         img.src = cached;
         cap.textContent = "截圖 " + (i + 1);
       } else {
-        getImage(id)
+        getImage(id, view.key)
           .then(u => {
             if (u) { img.src = u; cap.textContent = "截圖 " + (i + 1); }
             else cap.textContent = "找不到這張圖片（可能已被刪除）";
@@ -1332,9 +1522,11 @@
 
       const del = smallBtn("刪除這張圖", async () => {
         if (!confirm("確定要刪除這張圖片嗎？")) return;
-        note.images = note.images.filter(x => x !== id);
+        const list = nbImages(note);
+        const idx = list.indexOf(id);
+        if (idx >= 0) list.splice(idx, 1);
         try { await removeImage(id); } catch (e) {}
-        await persist("已刪除圖片");
+        await commitNote(note);
         renderNbImages(note);
       }, "red");
 
